@@ -91,6 +91,7 @@ splitLine()
 # f = open('foo.txt','r') # read only
 # f = open('foo.txt','w') # write only
 # f = open('foo.txt','a') # append only
+# f = open('foo.txt','rb') # binary mode
 
 # 读文件
 f = open('foo.txt','r')
