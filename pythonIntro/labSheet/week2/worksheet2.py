@@ -52,22 +52,6 @@ chunk1 = filecontent[:11]
 print(chunk1) # '\xe4\xb8\x80\n\xe5\x8f\x8b\xe6\x83\x85\n'  \x表示后面的字符是十六进制数
 print(chunk1.decode('utf8'))
 
-"""
-UTF-8字符串: \xe4\xb8\x80
-二进制: 11100100 10111000 10000000
-Encode form: 1110xxxx 10xxxxxx 10xxxxxx
-二进制Unicode码位: 0100111000000000
-十六进制: 4e00
-"""
-
-"""
-utf-8: \xe4\xb8\x80
-2进制: 11100100 10111000 10000000
-Encode form: 1110xxxx 10xxxxxx 10xxxxxx
-二进制Unicode码位: 0100111000000000
-十六进制: 4e00
-"""
-
 
 
 

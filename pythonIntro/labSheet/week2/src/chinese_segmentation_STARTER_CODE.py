@@ -47,4 +47,73 @@ if '-o' not in opts:
     printHelp()
 
 ################################################################
+'''
+with open("result.utf8",'rb') as f:
+    filecontent = f.read()
+print(filecontent) 
+print(filecontent.decode('utf8'))
+
+with open("result.utf8",'w') as f:
+    f.write('芜湖')
+'''
+
+chineseList = []
+dicList = []
+result = []
+# 字典转数组
+with open("chinesetrad_wordlist.utf8", 'rb') as f:
+    dictionary = f.read()
+dicSplit = dictionary.split()
+for i in dicSplit:
+    decode=i.decode('utf8')
+    dicList.append(decode)
+
+
+# 数据集转数组
+with open("chinesetext.utf8", 'rb') as f:
+    filecontent = f.read()
+splited = filecontent.split()
+for i in splited:
+    decoded = i.decode('utf8')
+    chineseList.append(decoded)
+
+
+
+
+for i in chineseList: 
+    if len(i) < MAXWORDLEN:
+        for d in dicList:
+            if i == d:
+                result.append(i)
+    
+        
+print(result)
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
