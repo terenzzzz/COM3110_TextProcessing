@@ -8,7 +8,7 @@ OPTIONS:
 """
 ################################################################
 
-import sys, getopt
+import sys, getopt,datetime
 
 ################################################################
 
@@ -19,6 +19,7 @@ MAXWORDLEN = 5
 
 opts, args = getopt.getopt(sys.argv[1:], 'hd:i:o:')
 opts = dict(opts)
+
 
 def printHelp():
     progname = sys.argv[0]
@@ -47,21 +48,13 @@ if '-o' not in opts:
     printHelp()
 
 ################################################################
-'''
-with open("result.utf8",'rb') as f:
-    filecontent = f.read()
-print(filecontent) 
-print(filecontent.decode('utf8'))
 
-with open("result.utf8",'w') as f:
-    f.write('芜湖')
-'''
-
+starttime = datetime.datetime.now()
 chineseList = []
 dicList = []
 result = []
 # 字典转数组
-with open("chinesetrad_wordlist.utf8", 'rb') as f:
+with open(opts['-d'], 'rb') as f:
     dictionary = f.read()
 dicSplit = dictionary.split()
 for i in dicSplit:
@@ -70,7 +63,7 @@ for i in dicSplit:
 
 
 # 数据集转数组
-with open("chinesetext.utf8", 'rb') as f:
+with open(opts['-i'], 'rb') as f:
     filecontent = f.read()
 splited = filecontent.split()
 for i in splited:
@@ -78,17 +71,44 @@ for i in splited:
     chineseList.append(decoded)
 
 
+# 对比
+def compare(word):
+    for d in dicList:
+        if word == d:
+            return True
+    return False
 
 
+# 遍历
 for i in chineseList: 
-    if len(i) < MAXWORDLEN:
-        for d in dicList:
-            if i == d:
-                result.append(i)
-    
-        
-print(result)
-    
+    start = 0
+    end = len(i)
+    while end > start:
+        if compare(i[start:end]):
+            result.append(i[start:end])
+            start = end
+            end = len(i)
+        else:
+            end = end - 1
+    result.append('\n')
+          
+
+with open(opts['-o'],'w+',encoding='utf-8') as f:
+    for i in result:
+        if i == '\n':
+            f.write(i)
+        else:
+            f.write(i + ' ')
+            
+endtime = datetime.datetime.now()
+print ("Program Finished in ", (endtime - starttime).seconds," senconds")
+
+
+
+
+
+
+
 
 
 
