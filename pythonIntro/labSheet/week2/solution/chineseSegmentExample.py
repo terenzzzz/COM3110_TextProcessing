@@ -8,7 +8,7 @@ OPTIONS:
 """
 ################################################################
 
-import sys, getopt,datetime
+import sys, getopt
 
 ################################################################
 
@@ -19,7 +19,6 @@ MAXWORDLEN = 5
 
 opts, args = getopt.getopt(sys.argv[1:], 'hd:i:o:')
 opts = dict(opts)
-
 
 def printHelp():
     progname = sys.argv[0]
@@ -48,52 +47,41 @@ if '-o' not in opts:
     printHelp()
 
 ################################################################
-# in 和 == 的效率？
-# set 和 data的效率？
+# Read dictionary
 
-
-starttime = datetime.datetime.now()
-
-
-# 字典转set
-print("Processing dictionary... ")
-dic_set = set()
-with open(opts['-d'], encoding = "utf8") as dic_in:
-    for line in dic_in:
-        dic_set.add(line.strip())
-
-
-# 数据集转set
-print("Processing dataset... ")
 word_set = set()
-with open(opts['-i'], encoding = "utf8") as words_in:
+
+with open(opts['-d'], encoding = "utf8") as words_in:
     for line in words_in:
         word_set.add(line.strip())
 
+################################################################
+# Process one sentence
 
-# 遍历 (item in set)
-def segment(sent, workset):
-    result = []
-    start = 0
-    end = len(sent)
-    while end > start:
-        if (sent[start:end] in workset):
-            result.append(sent[start:end])
-            start = end
-            end = len(sent)
-        else:
-            end = end - 1
-    return result
-        
-print("Segmenting... ")
-print("Writing result to file: ", opts['-o'])
+#def segment(sent, wordset):
+#    return list(sent)
+
+def segment(sent, wordset):
+    words = []
+    sentlen = len(sent)
+    current = 0
+    while current < sentlen:
+        maxlen = min(sentlen - current, MAXWORDLEN)
+        for i in range(maxlen, 0, -1):
+            candidate = sent[current:current + i]
+            if i == 1 or candidate in wordset:
+                words.append(candidate)
+                current += i
+                break
+    return words
+
+################################################################
+# Process input sentences and output results
+
 with open(opts['-i'], encoding = "utf8") as text_in, \
      open(opts['-o'], "w", encoding = "utf8") as text_out:
     for line in text_in:
-        words = segment(line.strip(), dic_set)
+        words = segment(line.strip(), word_set)
         print(' '.join(words), file = text_out)
-        
 
-            
-endtime = datetime.datetime.now()
-print ("Program Finished in ", (endtime - starttime).seconds," senconds")
+################################################################

@@ -54,6 +54,7 @@ chineseList = []
 dicList = []
 result = []
 # 字典转数组
+print("Processing dictionary... ")
 with open(opts['-d'], 'rb') as f:
     dictionary = f.read()
 dicSplit = dictionary.split()
@@ -63,6 +64,7 @@ for i in dicSplit:
 
 
 # 数据集转数组
+print("Processing dataset... ")
 with open(opts['-i'], 'rb') as f:
     filecontent = f.read()
 splited = filecontent.split()
@@ -80,6 +82,7 @@ def compare(word):
 
 
 # 遍历
+print("Segmenting... ")
 for i in chineseList: 
     start = 0
     end = len(i)
@@ -92,13 +95,14 @@ for i in chineseList:
             end = end - 1
     result.append('\n')
           
-
+print("Writing result to file: ", opts['-o'])
 with open(opts['-o'],'w+',encoding='utf-8') as f:
     for i in result:
         if i == '\n':
             f.write(i)
         else:
             f.write(i + ' ')
+
             
 endtime = datetime.datetime.now()
 print ("Program Finished in ", (endtime - starttime).seconds," senconds")
