@@ -1,6 +1,8 @@
 """\
 ------------------------------------------------------------
 USE: python <PROGNAME> (options) file1...fileN
+Purpose: omputing the level of word overlap between documents as an indicator of
+document similarity
 OPTIONS:
     -h : print this help message
     -b : use BINARY weights (default: count weighting)
@@ -43,5 +45,40 @@ if '-s' in opts:
             stops.add(line.strip())
 
 ##############################
+import re
+
+def tokenisations():
+    tokens = []
+    with open("NEWS/news01.txt", encoding=("utf-8"),) as f:
+        for line in f:
+            lower = line.lower()
+            list = re.findall(r'[A-Za-z]+',lower)
+            for i in list:
+                tokens.append(i)
+    return tokens
+
+def removeStop():
+    nonStop = []
+    for i in tokenisations():
+        if(i not in stops):
+            nonStop.append(i)
+    return nonStop
+            
+
+def count_words():
+    dictionary = {}
+    for i in removeStop():
+        if (i not in dictionary):
+            dictionary[i] = 1
+        else:
+            dictionary[i] = dictionary[i] + 1
+    return dictionary
+
+def compare():
+    print('1')
+            
+
+    
+print(count_words())
 
 
