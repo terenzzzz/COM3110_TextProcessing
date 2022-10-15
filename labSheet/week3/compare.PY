@@ -17,7 +17,6 @@ import sys, re, getopt, glob
 opts, args = getopt.getopt(sys.argv[1:], 'hs:bI:')
 opts = dict(opts)
 filenames = args
-
 ##############################
 # HELP option
 
@@ -45,7 +44,6 @@ if '-s' in opts:
             stops.add(line.strip())
 
 ##############################
-import re
 
 def tokenisations(file):
     tokens = []
@@ -74,11 +72,37 @@ def count_words(file):
             dictionary[i] = dictionary[i] + 1
     return dictionary
 
-def compare():
+def compare(file1, file2):
     rate = 0
-    dic1 = count_words("NEWS/news01.txt")
-    dic2 = count_words("NEWS/news02.txt")
+    dic1 = count_words(file1)
+    dic2 = count_words(file2)
     if '-b' in opts:
+        wordsAll = set()
+        minSum = 0
+        maxSum =0
+        for i in dic1:
+            wordsAll.add(i)
+        for i in dic2:
+            wordsAll.add(i)
+        # Min(wa,wb), Max(wa,wb)
+        for w in wordsAll:
+            # get count in dic1
+            if dic1.get(w):
+                a = dic1.get(w)
+            else:
+                a = 0
+            # get count in dic2
+            if dic2.get(w):
+                b = dic2.get(w)
+            else:
+                b = 0
+            minimum = min(a,b)
+            maximum = max(a,b)
+            minSum = minSum + minimum
+            maxSum = maxSum + maximum
+        rate = minSum/maxSum
+        return rate
+    else:
         overlab = set()
         # set which word overlab
         for i in dic1:
@@ -88,10 +112,19 @@ def compare():
         # Length for all
         wordsLen = len(dic1) + len(dic2)
         rate = overlabLen/wordsLen
-    else:
-        print(1)
     return rate
+
+# Main
+
+if '-b' in opts:
+    output = "weightedResult.txt"
+else:
+    output = "simpResult.txt"
     
-print(compare())
-
-
+with open(output,'w') as result_out:
+    for index,file in enumerate(filenames):
+        current = index+1
+        while current < len(filenames):
+            result_out.write(filenames[index]+" <> "+ filenames[current]+"="+
+                  '%.3f' % compare(filenames[index],filenames[current])+"\n")
+            current += 1
