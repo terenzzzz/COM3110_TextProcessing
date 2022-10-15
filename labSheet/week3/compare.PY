@@ -5,7 +5,7 @@ Purpose: omputing the level of word overlap between documents as an indicator of
 document similarity
 OPTIONS:
     -h : print this help message
-    -b : use BINARY weights (default: count weighting)
+    -b : use BINARY weights (default: non-weighting)
     -s FILE : use stoplist file FILE
     -I PATT : identify input files using pattern PATT, 
               (otherwise uses files listed on command line)
@@ -34,6 +34,11 @@ if '-I' in opts:
     filenames = glob.glob(opts['-I'])
 
 print('INPUT-FILES:', ' '.join(filenames))
+
+if '-b' in opts:
+    print('Running in Weighted Algorithm...')
+else:
+    print('Running in Non-Weighted Algorithm...')
 
 ##############################
 # STOPLIST option
@@ -76,6 +81,7 @@ def compare(file1, file2):
     rate = 0
     dic1 = count_words(file1)
     dic2 = count_words(file2)
+    # -b: Weighted mode
     if '-b' in opts:
         wordsAll = set()
         minSum = 0
