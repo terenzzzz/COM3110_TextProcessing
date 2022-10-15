@@ -47,9 +47,9 @@ if '-s' in opts:
 ##############################
 import re
 
-def tokenisations():
+def tokenisations(file):
     tokens = []
-    with open("NEWS/news01.txt", encoding=("utf-8"),) as f:
+    with open(file, encoding=("utf-8"),) as f:
         for line in f:
             lower = line.lower()
             list = re.findall(r'[A-Za-z]+',lower)
@@ -57,17 +57,17 @@ def tokenisations():
                 tokens.append(i)
     return tokens
 
-def removeStop():
+def removeStop(file):
     nonStop = []
-    for i in tokenisations():
+    for i in tokenisations(file):
         if(i not in stops):
             nonStop.append(i)
     return nonStop
             
 
-def count_words():
+def count_words(file):
     dictionary = {}
-    for i in removeStop():
+    for i in removeStop(file):
         if (i not in dictionary):
             dictionary[i] = 1
         else:
@@ -75,10 +75,23 @@ def count_words():
     return dictionary
 
 def compare():
-    print('1')
-            
-
+    rate = 0
+    dic1 = count_words("NEWS/news01.txt")
+    dic2 = count_words("NEWS/news02.txt")
+    if '-b' in opts:
+        overlab = set()
+        # set which word overlab
+        for i in dic1:
+            if i in dic2:
+                overlab.add(i)
+        overlabLen = len(overlab)
+        # Length for all
+        wordsLen = len(dic1) + len(dic2)
+        rate = overlabLen/wordsLen
+    else:
+        print(1)
+    return rate
     
-print(count_words())
+print(compare())
 
 

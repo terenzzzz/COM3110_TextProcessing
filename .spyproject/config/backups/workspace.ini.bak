@@ -4,7 +4,7 @@ save_data_on_exit = True
 save_history = True
 save_non_project_files = False
 project_type = 'empty-project-type'
-recent_files = ['labSheet\\week2\\src\\Improve.py', 'labSheet\\week2\\src\\chinesetext_goldstandard.utf8', 'labSheet\\week2\\src\\improveResult.utf8', 'labSheet\\week2\\src\\text.utf8']
+recent_files = ['labSheet/week3/compare.PY', '../TextProcessing/labSheet/week2/worksheet2.py', '../TextProcessing/labSheet/week2/solution/chineseSegmentExample.py', '../TextProcessing/labSheet/week3/NEWS/news01.txt']
 
 [main]
 version = 0.2.0
