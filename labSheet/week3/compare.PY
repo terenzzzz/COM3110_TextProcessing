@@ -121,16 +121,30 @@ def compare(file1, file2):
     return rate
 
 # Main
-
 if '-b' in opts:
     output = "weightedResult.txt"
 else:
     output = "simpResult.txt"
+
+# Result dictionary for rank
+result = {}
+for index,file in enumerate(filenames):
+    current = index+1
+    while current < len(filenames):
+        result[filenames[index]+" <> "+ filenames[current]] = '%.3f' % compare(filenames[index],filenames[current])
+        current += 1
+        
+# ranking
+sort = sorted(result.items(),key=lambda x:-float(x[1]))[:10]
+# Prink top 10
+print("Top 10 overlab file:")
+index=1
+for i in sort:
+    print("["+ str(index) + "] " + i[0] + ' : ' + i[1])
+    index +=1
     
+# write file
 with open(output,'w') as result_out:
-    for index,file in enumerate(filenames):
-        current = index+1
-        while current < len(filenames):
-            result_out.write(filenames[index]+" <> "+ filenames[current]+"="+
-                  '%.3f' % compare(filenames[index],filenames[current])+"\n")
-            current += 1
+    for file in result:
+        result_out.write(file + result[file] + '\n')
+
