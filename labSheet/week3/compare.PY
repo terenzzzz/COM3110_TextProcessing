@@ -36,9 +36,9 @@ if '-I' in opts:
 print('INPUT-FILES:', ' '.join(filenames))
 
 if '-b' in opts:
-    print('Running in Weighted Algorithm...')
-else:
     print('Running in Non-Weighted Algorithm...')
+else:
+    print('Running in Weighted Algorithm...')
 
 ##############################
 # STOPLIST option
@@ -81,8 +81,19 @@ def compare(file1, file2):
     rate = 0
     dic1 = count_words(file1)
     dic2 = count_words(file2)
-    # -b: Weighted mode
+    allDic = {**dic1, **dic2}
+    # -b: non Weighted mode
     if '-b' in opts:
+        overlab = set()
+        # set which word overlab
+        for i in allDic:
+            if i in dic1 and i in dic2:
+                overlab.add(i)
+        overlabLen = len(overlab)
+        # Length for all
+        wordsLen = len(allDic)
+        rate = overlabLen/wordsLen
+    else:
         wordsAll = set()
         minSum = 0
         maxSum =0
@@ -107,24 +118,13 @@ def compare(file1, file2):
             minSum = minSum + minimum
             maxSum = maxSum + maximum
         rate = minSum/maxSum
-        return rate
-    else:
-        overlab = set()
-        # set which word overlab
-        for i in dic1:
-            if i in dic2:
-                overlab.add(i)
-        overlabLen = len(overlab)
-        # Length for all
-        wordsLen = len(dic1) + len(dic2)
-        rate = overlabLen/wordsLen
     return rate
 
 # Main
 if '-b' in opts:
-    output = "weightedResult.txt"
-else:
     output = "simpResult.txt"
+else:
+    output = "weightedResult.txt"
 
 # Result dictionary for rank
 result = {}
