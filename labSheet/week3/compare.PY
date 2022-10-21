@@ -58,6 +58,7 @@ def tokenisations(file):
             list = re.findall(r'[A-Za-z]+',lower)
             for i in list:
                 tokens.append(i)
+    print(tokens)
     return tokens
 
 def removeStop(file):
