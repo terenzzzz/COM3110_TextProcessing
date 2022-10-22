@@ -61,10 +61,19 @@ def toDict(tokenSent):
     return dict
 
 def greatedCount():
-    dict = toDict(tokenSent)
-    print(dict)
+    dictionary = toDict(tokenSent)
+    sorted={}
+    for outer in dictionary:
+        tag = ""
+        value=0
+        for inner in outer:
+            if dict[outer][inner]> value:
+                value = dict[outer][inner]
+                tag = inner
 
-greatedCount()
+            sorted[outer]={tag:value}
+    return sorted
+print(greatedCount())
 
 
 
