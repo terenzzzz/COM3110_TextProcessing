@@ -37,6 +37,7 @@ if len(args) > 0:
 ################################################################
 print(opts['-d'])
 
+# -- Read Sentent in the file
 tokenSent=list()
 with open(opts['-d'], 'r') as training:
     for line in training :
@@ -44,10 +45,14 @@ with open(opts['-d'], 'r') as training:
         wordList = sentence.split()
         for word in wordList:
             tokenSent.append(word)
-      
+################################################################
+
+
+# -- make sentent into Dictionary
+# -- Maping in the form {'then-market': {'JJ': 1}}
 
 def toDict(tokenSent):
-    dict = {} 
+    dict = {}
     for token in tokenSent:
         tokenList = token.split("/")
         length = len(tokenList)
@@ -55,13 +60,57 @@ def toDict(tokenSent):
             dict[tokenList[0]]={}
         for i in range(1,length):
             if tokenList[i] in dict[tokenList[0]]:
-                dict[tokenList[0]][tokenList[i]] = dict[tokenList[0]][tokenList[i]] + 1 
+                dict[tokenList[0]][tokenList[i]] += 1 
             else:
                 dict[tokenList[0]][tokenList[i]] = 1
     return dict
 
-def greatedCount():
-    dict = toDict(tokenSent)
+
+################################################################
+
+
+# -- proportion of types that have more than one tag(ambiguous)  ambiguousTypes/allTypes
+# -- accuracy naive tagger would have on the training data  ambiguousTokens/allTokens
+# -- most common tags globally  greateToken/allTokens,
+wordTagCounts = toDict(tokenSent)
+ambiguousTypes = 0 # have more than one tag
+allTypes = len(wordTagCounts)
+ambiguousTokens = 0
+allTokens = 0
+greateToken = 0
+tagCount={}
+for w in wordTagCounts:
+    tagsCount = wordTagCounts[w].values()
+    if  len(tagsCount) > 1:
+        ambiguousTypes += 1
+        ambiguousTokens += sum(tagsCount)
+    greateToken += max(tagsCount)
+    allTokens += sum(tagsCount)
+    for t,c in wordTagCounts[w].items():
+        if t in tagCount:
+            tagCount[t] += c
+        else:
+            tagCount[t] = c
+    
+typeRate = format(100*ambiguousTypes/allTypes, '.2f')
+print('Proportion of types ambiguous: {a}% ({at}/{all}) '.format(a=typeRate,at=ambiguousTypes,all=allTypes))
+
+tokenRate = format(100*ambiguousTokens/allTokens, '.2f')
+print('Proportion of tokens ambiguous: {a}% ({at}/{all}) '.format(a=tokenRate,at=ambiguousTokens,all=allTokens))
+
+greatRate = format(100*greateToken/allTokens, '.2f')
+print('Accuracy of naive tagger on training data: {a}% ({at}/{all}) '.format(a=greatRate,at=greateToken,all=allTokens))
+
+# Sort in order
+sort = sorted(tagCount.items(),key=lambda x:-float(x[1]))[:10]
+print('Top Ten Tags by count:')
+for t,c in sort:
+    rate=format(100*c/allTokens, '.2f')
+    print('{t}  {rate}% ({c}/{all})'.format(t=t, rate=rate,c=c,all=allTokens))
+
+
+################################################################
+def greatedCount(dict):
     sorted={}
     for outer in dict:
         tag = ""
@@ -70,10 +119,28 @@ def greatedCount():
             if dict[outer][inner] > value:
                 value = dict[outer][inner]
                 tag = inner
-        sorted[outer]={tag:value}
+        sorted[outer]=tag
 
     return sorted
-print(greatedCount())
+maxTags = greatedCount(wordTagCounts)
+with open(opts['-t'], 'r') as test:
+    allTest = 0
+    correct = 0
+    for line in test:
+        sentence  = line.strip()
+        wordList = sentence.split()
+        for wt in wordList:
+            wordTag = wt.split('/')
+            if wordTag[0] in maxTags:
+                if wordTag[1] == maxTags[wordTag[0]]:
+                    correct += 1
+            allTest += 1
+            
+    score = format(100*correct/allTest, '.2f')
+    print('Score on test data： {score} ({correct}/{allTest})'.format(score=score, correct=correct,allTest=allTest))
+################################################################        
+
+
 
 
 
