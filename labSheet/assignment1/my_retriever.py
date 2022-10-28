@@ -7,6 +7,8 @@ class Retrieve:
         self.index = index
         self.term_weighting = term_weighting
         self.num_docs = self.compute_number_of_documents()
+        print(self.index)
+        
         
     def compute_number_of_documents(self):
         self.doc_ids = set() 
@@ -20,4 +22,5 @@ class Retrieve:
     def for_query(self, query):
         return list(range(1,11))
 
-
+    
+    
