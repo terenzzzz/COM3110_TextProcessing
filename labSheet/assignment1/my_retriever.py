@@ -1,3 +1,12 @@
+# Do we need to process the query
+# Index mean in engine
+# Query mean in engine
+# The return in for_query
+# Goal: Find The Best 10 Document  for each queries?
+# What method to rank (queries has many words) term_weighting???
+
+
+
 
 class Retrieve:
     
@@ -7,8 +16,7 @@ class Retrieve:
         self.index = index
         self.term_weighting = term_weighting
         self.num_docs = self.compute_number_of_documents()
-        print(self.index)
-        
+
         
     def compute_number_of_documents(self):
         self.doc_ids = set() 
@@ -20,7 +28,12 @@ class Retrieve:
     # represented as a list of preprocessed terms). Returns list 
     # of doc ids for relevant docs (in rank order).
     def for_query(self, query):
+
+
+        
         return list(range(1,11))
 
-    
-    
+    # articles
+    def query(self,keyword):
+        print(1)
+        

@@ -72,13 +72,17 @@ class CommandLine:
 
         with open('IR_data.pickle', 'rb') as data_in:
             all_data = pickle.load(data_in)
-        
+
         choice = 'index_stoplist_%s_stemming_%s' % (stoplist, stemming)
         self.index = all_data[choice]
-
+        # Whats the figure means
+        # print(self.index)
+            
         choice = 'queries_stoplist_%s_stemming_%s' % (stoplist, stemming)
         self.queries = all_data[choice]
-
+        # Whats the figure mean 
+        # print(self.queries)
+            
         self.exit = False
 
     def print_help(self):
@@ -86,7 +90,7 @@ class CommandLine:
         progname = progname.split('/')[-1] # strip off extended path
         help = __doc__.replace('<PROGNAME>', progname, 1)
         print(help, file=sys.stderr)
-        
+
 #==============================================================================
 # Store for Retrieval Results
 
@@ -98,7 +102,7 @@ class Result_Store:
         if len(docids) > 10:
             docids = docids[:10]
         self.results.append((qid, docids))
-
+        
     def output(self, outfile):
         with open(outfile, 'w') as out:
             for (qid, docids) in self.results:

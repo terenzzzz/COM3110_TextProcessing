@@ -4,7 +4,7 @@ save_data_on_exit = True
 save_history = True
 save_non_project_files = False
 project_type = 'empty-project-type'
-recent_files = ['labSheet/week3/compare.PY', '../TextProcessing/labSheet/week3/weightedResult.txt', '../TextProcessing/labSheet/week3/simpResult.txt']
+recent_files = ['labSheet/week4/postagger_STARTER_CODE.py', '../TextProcessing/labSheet/week4/POSTAG_DATA/training_data.txt', '../TextProcessing/labSheet/week4/POSTAG_DATA/test_data.txt', '../TextProcessing/labSheet/week3/compare.PY']
 
 [main]
 version = 0.2.0
