@@ -102,7 +102,7 @@ class Result_Store:
         if len(docids) > 10:
             docids = docids[:10]
         self.results.append((qid, docids))
-        
+
     def output(self, outfile):
         with open(outfile, 'w') as out:
             for (qid, docids) in self.results:
