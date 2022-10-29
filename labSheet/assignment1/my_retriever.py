@@ -18,9 +18,7 @@ class Retrieve:
         self.num_docs = self.compute_number_of_documents()
         print('Running in ',self.term_weighting)
         print('Total docs: ',self.num_docs)
-        # print(len(self.index))
 
-        
     def compute_number_of_documents(self):
         self.doc_ids = set() 
         for term in self.index:
@@ -33,18 +31,18 @@ class Retrieve:
     # of doc ids for relevant docs (in rank order).
     
     def for_query(self, query):
-        qDSum = []
-        fullList = {}
-        quertSet=set()
-        for q in query:
-            quertSet.add(q)
-        # print('quertSet: ', quertSet)
+        result = {}
+        # 调用processQuery处理query
+        query = self.processQuery(query)
         
+        # 构造向量
+        docDict={}
+        for docId in self.doc_ids:
+            docDict[docId] = {}
+        # Binary Mode
         if self.term_weighting == 'binary':
             # 判断query词是否出现在document中
-            docDict={}
             for docId in self.doc_ids:
-                docDict[docId] = {}
                 for k in query:
                     if k in self.index:
                         if docId in self.index[k]:
@@ -52,47 +50,188 @@ class Retrieve:
                         else:
                             binaryNum = 0
                         docDict[docId][k] = binaryNum
+            # 调用相似度计算返回结果
+            result = self.simCalc_binary(docDict)
                     
-            # 筛选出相关的文章
-            candidate = {}
-            for doc in docDict:
-                valueList = list(docDict[doc].values())
-                for val in valueList:
-                    if val == 1:
-                        candidate[doc]= docDict[doc]
-                        
-            # 计算
-            # 分母
-            docSize = {}
-            for term in self.index:
-                for docId in self.index[term]:
-                    if docId in docSize:
-                        docSize[docId] += 1
-                    else:
-                        docSize[docId] = 0
-            # print(docSize)
-
-            # 分子
-            result = {}
-            for doc in candidate:
-                valueList = list(candidate[doc].values())
-                pwdPSum=docSize[doc]
-                pQSum=0
-                for val in valueList:
-                    if val == 1:
-                        pQSum += 1
-                cosVal = pQSum / math.sqrt(pwdPSum)
-                result[doc] = cosVal
-            # print(result)
+        # TF(Term Frequency) Mode
+        elif self.term_weighting == 'tf':
+            # 计算关键词出现在每篇文章中的次数
+            for docId in self.doc_ids:
+               for k in query:
+                  if k in self.index:
+                      if docId in self.index[k]:
+                          count = self.index[k][docId]
+                      else:
+                          count = 0
+                      docDict[docId][k] = count
             
-            # 排序
-            top_10 = []
-            sort = sorted(result.items(),key=lambda x:-x[1])[:10]
-            for docId,sim in sort:
-                top_10.append(docId)
-                    
-        
-        return top_10
+            # 调用相似度计算返回结果
+            result = self.simCalc_tf(docDict, query)
+    
+        # TF.IDF
+        else:
+            # 计算关键词出现在每篇文章中的次数(tf)
+            for docId in self.doc_ids:
+               for k in query:
+                  if k in self.index:
+                      if docId in self.index[k]:
+                          count = self.index[k][docId]
+                      else:
+                          count = 0
+                      docDict[docId][k] = count
+            
+            # size od Collection
+            collectionSize = self.num_docs
+            
+            # number of documents containg w
+            # 多少个文件包含w
+            numDocW = {}
+            for k in query:
+                numDocW[k] = {}
+                if k in self.index:
+                    numDoc = len(self.index[k])
+                    numDocW[k] = numDoc
 
-    # def compute_size_of_document_vector(self,file):
+            # 计算document中的tfidf值
+            tfIdfDict = {}
+            for docId in self.doc_ids:
+                tfIdfDict[docId] = {}
+                for k in query:
+                    if k in self.index:
+                        tf = docDict[docId][k]
+                        idf = math.log(collectionSize/numDocW[k])
+                        tfIdf = tf * idf
+                        tfIdfDict[docId][k] = tfIdf
+            
+            # 计算query中的tfidf值
+            queryTfIdf = {}
+            for k in query:
+                if k in self.index:
+                    tf = query[k]
+                    idf = math.log(collectionSize/numDocW[k])
+                    tfIdf = tf * idf
+                    queryTfIdf[k] = tfIdf
+                
+            result = self.simCalc_tfIdf(tfIdfDict,queryTfIdf)
+                     
+        # 调用排序返回相似度最大的十个
+        return self.rankTop(result,10)
+
+#==============================================================================
+# Calculation
+    # 相似度计算(Binary)
+    def simCalc_binary(self,docDict):
+        result = {}
+        # 计算文件里有多少个Term
+        docSize = {}
+        for term in self.index:
+            for docId in self.index[term]:
+                if docId in docSize:
+                    docSize[docId] += 1
+                else:
+                    docSize[docId] = 0
+                    
+        # 计算有多少词语又在文件中 又在query中
+        for doc in docDict:
+            valueList = list(docDict[doc].values())
+            pwdDSum = docSize[doc]
+            qdSum=0
+            for val in valueList:
+                if val == 1:
+                    qdSum += 1
+            # 通过计算cos获取sim值
+            cosVal = qdSum / math.sqrt(pwdDSum)
+            result[doc] = cosVal
+        return result
+    
+    # 相似度计算(TF)
+    def simCalc_tf(self,docDict,query):
+        result = {}
+        # 分母
+        pwdDSum = {}
+        for term in self.index:
+            for docId in self.index[term]:
+                if docId in pwdDSum:
+                    pwdDSum[docId] += self.index[term][docId] * self.index[term][docId]
+                else:
+                    pwdDSum[docId] = self.index[term][docId] * self.index[term][docId]
+               
+        # 分子 qd
+        for docId in docDict:
+            qdSum = 0
+            for term in docDict[docId]:
+                d = docDict[docId][term]
+                q = query[term]
+                qdSum += d * q
+            # 通过计算cos获取sim值
+            cosVal = qdSum / math.sqrt(pwdDSum[docId])
+            result[docId] = cosVal
+        return result
+    
+    def simCalc_tfIdf(self,tfIdfDict,queryTfIdf):
+        result = {}
         
+        # 分子 qd
+        for docId in tfIdfDict:
+            qdSum = 0
+            pwdDSum = 0
+            for k in tfIdfDict[docId]:
+                q = queryTfIdf[k]
+                d = tfIdfDict[docId][k]
+                qd = q * d
+                qdSum += qd
+                pwdDSum += tfIdfDict[docId][k] * tfIdfDict[docId][k]
+
+            if pwdDSum == 0:
+                result[docId] = 0
+            else:
+                cosVal = qdSum / math.sqrt(pwdDSum)
+                result[docId] = cosVal
+        return result
+            
+                
+            
+    
+    
+    
+#==============================================================================
+# Helper
+    def tfCalc(self,query,index):
+        tfDict={}
+        for term in query:
+            for docId in index[term]:
+                if docId in tfDict:
+                    tfDict[docId] += index[term][docId]
+                else:
+                    tfDict[docId] = index[term][docId]
+        return tfDict
+
+    # 排序方法
+    def rankTop(self,dict,size):
+        top_10 = []
+        sort = sorted(dict.items(),key=lambda x:-x[1])[:size]
+        for docId,sim in sort:
+            top_10.append(docId)
+        return top_10
+    
+    # 处理queryList 返回set 排除重复词
+    def processQuery(self,query):
+        quertDict={}
+        for q in query:
+            if q in quertDict:
+                quertDict[q] += 1
+            else:
+                quertDict[q] = 1
+        return quertDict
+
+
+
+
+            # 筛选出相关的文章
+            # candidate = {}
+            # for doc in docDict:
+            #     valueList = list(docDict[doc].values())
+            #     for val in valueList:
+            #         if val == 1:
+            #             candidate[doc]= docDict[doc]
+                        

@@ -16,13 +16,14 @@ OPTIONS:
 import sys
 import getopt
 import pickle
+import datetime
 
 from my_retriever import Retrieve
 
 #==============================================================================
 # Command line processing
-
 class CommandLine:
+    
     def __init__(self):
         opts, args = getopt.getopt(sys.argv[1:], 'hspw:o:')
         opts = dict(opts)
@@ -113,6 +114,7 @@ class Result_Store:
 # MAIN
 
 if __name__ == '__main__':
+    starttime = datetime.datetime.now()
     exampleList = ['articles', 'exist', 'deal', 'tss', 'time', 'sharing', 'system', 'operating', 'system', 'ibm', 'computers']
     config = CommandLine()
     if config.exit:
@@ -128,4 +130,5 @@ if __name__ == '__main__':
         all_results.store(qid, results)
 
     all_results.output(config.outfile)
-
+    endtime = datetime.datetime.now()
+    print ('Running Time: ', (endtime - starttime))
