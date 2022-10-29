@@ -123,8 +123,8 @@ if __name__ == '__main__':
 
     for (qid, query) in queries:
          
-        # results = retrieve.for_query(query)
-        results = retrieve.for_query(exampleList)
+        results = retrieve.for_query(query)
+        # results = retrieve.for_query(exampleList)
         all_results.store(qid, results)
 
     all_results.output(config.outfile)

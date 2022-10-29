@@ -41,6 +41,7 @@ class Retrieve:
         # print('quertSet: ', quertSet)
         
         if self.term_weighting == 'binary':
+            # 判断query词是否出现在document中
             docDict={}
             for docId in self.doc_ids:
                 docDict[docId] = {}
@@ -51,7 +52,6 @@ class Retrieve:
                         else:
                             binaryNum = 0
                         docDict[docId][k] = binaryNum
-            
                     
             # 筛选出相关的文章
             candidate = {}
@@ -60,7 +60,6 @@ class Retrieve:
                 for val in valueList:
                     if val == 1:
                         candidate[doc]= docDict[doc]
-            print(candidate)
                         
             # 计算
             # 分母
@@ -71,6 +70,7 @@ class Retrieve:
                         docSize[docId] += 1
                     else:
                         docSize[docId] = 0
+            # print(docSize)
 
             # 分子
             result = {}
@@ -81,13 +81,13 @@ class Retrieve:
                 for val in valueList:
                     if val == 1:
                         pQSum += 1
-                cosVal = pQSum/math.sqrt(pwdPSum)
+                cosVal = pQSum / math.sqrt(pwdPSum)
                 result[doc] = cosVal
             # print(result)
             
             # 排序
             top_10 = []
-            sort = sorted(result.items(),key=lambda x:x[1])[:10]
+            sort = sorted(result.items(),key=lambda x:-x[1])[:10]
             for docId,sim in sort:
                 top_10.append(docId)
                     
