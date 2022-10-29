@@ -113,7 +113,7 @@ class Result_Store:
 # MAIN
 
 if __name__ == '__main__':
-
+    exampleList = ['articles', 'exist', 'deal', 'tss', 'time', 'sharing', 'system', 'operating', 'system', 'ibm', 'computers']
     config = CommandLine()
     if config.exit:
         sys.exit(0)
@@ -122,7 +122,9 @@ if __name__ == '__main__':
     all_results = Result_Store()
 
     for (qid, query) in queries:
-        results = retrieve.for_query(query)
+         
+        # results = retrieve.for_query(query)
+        results = retrieve.for_query(exampleList)
         all_results.store(qid, results)
 
     all_results.output(config.outfile)
