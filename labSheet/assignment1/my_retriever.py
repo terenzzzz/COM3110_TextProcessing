@@ -70,7 +70,7 @@ class Retrieve:
     
         # TF.IDF
         else:
-            # 计算关键词出现在每篇文章中的次数(tf)
+            # 计算关键词在每篇文章中出现的次数(tf)
             tfDict={}
             for docId in self.doc_ids:
                 tfDict[docId] = {}
@@ -92,7 +92,19 @@ class Retrieve:
                 numDocW[k] = {}
                 if k in self.index:
                     numDoc = len(self.index[k])
-                    numDocW[k] = numDoc
+                else:
+                    numDoc = 0
+                numDocW[k] = numDoc
+            # print(numDocW)
+            
+            # 计算idf
+            idfDict={}
+            for k in query:
+                if numDocW[k] == 0:
+                    idf = 0
+                else:
+                    idf = math.log(collectionSize / numDocW[k])
+                idfDict[k] = idf
 
             # 计算document中的tfidf值
             tfIdfDict = {}
@@ -101,36 +113,40 @@ class Retrieve:
                 for k in query:
                     if k in self.index:
                         tf = tfDict[docId][k]
-                        idf = math.log(collectionSize/numDocW[k])
+                        idf = idfDict[k]
                         tfIdf = tf * idf
                         tfIdfDict[docId][k] = tfIdf
+            
+            
+            # 筛选出有相关的
+            condidate = {}
+            for docId in tfIdfDict:
+                for tfidf in tfIdfDict[docId].values():
+                    if tfidf > 0:
+                        condidate[docId] = tfIdfDict[docId]
+                    
             
             # 计算query中的tfidf值
             queryTfIdf = {}
             for k in query:
                 if k in self.index:
                     tf = query[k]
-                    idf = math.log(collectionSize/numDocW[k])
+                    idf = idfDict[k]
                     tfIdf = tf * idf
                     queryTfIdf[k] = tfIdf
                     
             # 计算sim
             result = {}
-            for docId in tfIdfDict:
+            for docId in condidate:
                 qdSum = 0
                 pwdDSum = 0
-                for k in tfIdfDict[docId]:
+                for k in condidate[docId]:
                     q = queryTfIdf[k]
-                    d = tfIdfDict[docId][k]
-                    qd = q * d
-                    qdSum += qd
+                    d = condidate[docId][k]
+                    qdSum += q * d
                     pwdDSum += d * d
-                # 排除毫不相干的文件
-                if pwdDSum == 0:
-                    result[docId] = 0
-                else:
-                    cosVal = qdSum / math.sqrt(pwdDSum)
-                    result[docId] = cosVal
+                cosVal = qdSum / math.sqrt(pwdDSum)
+                result[docId] = cosVal
                      
         # 调用排序返回相似度最大的十个
         return self.rankTop(result,10)
