@@ -16,8 +16,6 @@ class Retrieve:
         self.index = index
         self.term_weighting = term_weighting
         self.num_docs = self.compute_number_of_documents()
-        print('Running in ',self.term_weighting)
-        print('Total docs: ',self.num_docs)
 
     def compute_number_of_documents(self):
         self.doc_ids = set() 
@@ -32,7 +30,7 @@ class Retrieve:
     
     def for_query(self, query):
         # 调用processQuery处理query
-        query = self.processQuery(query)
+        self.query = self.processQuery(query)
         
 #==============================================================================       
         
@@ -45,51 +43,60 @@ class Retrieve:
             # 判断query词是否出现在document中
             for docId in self.doc_ids:
                 docVector[docId] = {}
-                for k in query:
+                for k in self.query:
                     if k in self.index:
                         if docId in self.index[k]:
                             binaryNum = 1
                         else:
                             binaryNum = 0
                         docVector[docId][k] = binaryNum
+
+            
+            # 计算文件里有多少个Term
+            doc_TermCount = {}
+            for term in self.index:
+                for docId in self.index[term]:
+                    if docId in doc_TermCount:
+                        doc_TermCount[docId] += 1
+                    else:
+                        doc_TermCount[docId] = 0
+
+                        
             # 调用相似度计算返回结果
-            result = self.simCalc_binary(docVector)
+            result = self.simCalc_binary(doc_TermCount,docVector)
             
 #==============================================================================                    
 # TF(Term Frequency) Mode
 
         elif self.term_weighting == 'tf':
             # 计算关键词出现在每篇文章中的次数
-            docVector = self.tfCalc(query)
+            docVector = self.tfCalc()
+            
+            doc_dPwd_sum = {}
+            for term in self.index:
+                for docId in self.index[term]:
+                    if docId in doc_dPwd_sum:
+                        doc_dPwd_sum[docId] += self.index[term][docId] * self.index[term][docId]
+                    else:
+                        doc_dPwd_sum[docId] = self.index[term][docId] * self.index[term][docId]
             
             # 调用相似度计算返回结果
-            result = self.simCalc_tf(docVector, query)
+            result = self.simCalc_tf(docVector, doc_dPwd_sum)
             
 #==============================================================================    
 # TF.IDF
 
         else:
-            # 计算关键词在每篇文章中出现的次数(tf)
-            tfDict = self.tfCalc(query)
-            
-            # size od Collection(|D|)
-            collectionSize = self.num_docs
-            
-            # 计算idf
-            idfDict = self.idfCalc(query,collectionSize)
+            # 计算tf
+            tfDict = self.tfCalc()
 
             # 计算tfIdf
-            tfIdfDict = self.tfIdfCalc(query,tfDict,idfDict)
+            docVector = self.tfIdfCalc(tfDict)
             
-            
-            # 筛选出有相关的
-            docVector = {}
-            for docId in tfIdfDict:
-                for tfidf in tfIdfDict[docId].values():
-                    if tfidf > 0:
-                        docVector[docId] = tfIdfDict[docId]
+            # 计算query中的tfidf值
+            queryTfIdf = self.q_tfIdfCalc()
                         
-            result = self.simCalc_tfIdf(query,idfDict,docVector)
+            result = self.simCalc_tfIdf(queryTfIdf,docVector)
             
 #==============================================================================
 # Return 
@@ -100,61 +107,37 @@ class Retrieve:
 #==============================================================================
 # Calculation
     # 相似度计算(Binary)
-    def simCalc_binary(self,docDict):
+    def simCalc_binary(self, doc_TermCount, docVector):
         result = {}
-        # 计算文件里有多少个Term
-        docSize = {}
-        for term in self.index:
-            for docId in self.index[term]:
-                if docId in docSize:
-                    docSize[docId] += 1
-                else:
-                    docSize[docId] = 0
-                    
-        # 计算有多少词语又在文件中 又在query中
-        for doc in docDict:
-            valueList = list(docDict[doc].values())
-            pwdDSum = docSize[doc]
-            qdSum=0
-            for val in valueList:
-                if val == 1:
-                    qdSum += 1
+        for docId in docVector:
+            pwdDSum = doc_TermCount[docId]
+            qdSum = 0
+            for term in docVector[docId]:
+                q = 1
+                d = docVector[docId][term]
+                qdSum += q * d
             # 通过计算cos获取sim值
             cosVal = qdSum / math.sqrt(pwdDSum)
-            result[doc] = cosVal
-        return result
-    
-    # 相似度计算(TF)
-    def simCalc_tf(self,docDict,query):
-        result = {}
-        # 分母
-        pwdDSum = {}
-        for term in self.index:
-            for docId in self.index[term]:
-                if docId in pwdDSum:
-                    pwdDSum[docId] += self.index[term][docId] * self.index[term][docId]
-                else:
-                    pwdDSum[docId] = self.index[term][docId] * self.index[term][docId]
-               
-        # 分子 qd
-        for docId in docDict:
-            qdSum = 0
-            for term in docDict[docId]:
-                d = docDict[docId][term]
-                q = query[term]
-                qdSum += d * q
-            # 通过计算cos获取sim值
-            cosVal = qdSum / math.sqrt(pwdDSum[docId])
             result[docId] = cosVal
         return result
     
-    def simCalc_tfIdf(self,query,idfDict,docVector):
+    # 相似度计算(TF)
+    def simCalc_tf(self, docVector, doc_dPwd_sum):
         result = {}
-        
-        # 计算query中的tfidf值
-        queryTfIdf = self.q_tfIdfCalc(query,idfDict)
-        
-                
+        for docId in docVector:
+            qdSum = 0
+            dPwdSum = doc_dPwd_sum[docId]
+            for term in docVector[docId]:
+                q = self.query[term]
+                d = docVector[docId][term]
+                qdSum += q * d
+            # 通过计算cos获取sim值
+            cosVal = qdSum / math.sqrt(dPwdSum)
+            result[docId] = cosVal
+        return result
+    
+    def simCalc_tfIdf(self,queryTfIdf,docVector):
+        result = {}
         # 计算sim
         result = {}
         for docId in docVector:
@@ -165,7 +148,10 @@ class Retrieve:
                 d = docVector[docId][k]
                 qdSum += q * d
                 pwdDSum += d * d
-            cosVal = qdSum / math.sqrt(pwdDSum)
+            if pwdDSum == 0:
+                cosVal = 0
+            else:
+                cosVal = qdSum / math.sqrt(pwdDSum)
             result[docId] = cosVal
            
         return result
@@ -175,55 +161,42 @@ class Retrieve:
 # Helper
 
     # 计算Term Frequency
-    def tfCalc(self,query):
+    def tfCalc(self):
         # 计算关键词在每篇文章中出现的次数(tf)
         tfDict={}
         for docId in self.doc_ids:
             tfDict[docId] = {}
-            for k in query:
-               if k in self.index:
-                   if docId in self.index[k]:
-                       count = self.index[k][docId]
-                   else:
-                       count = 0
-                   tfDict[docId][k] = count
+            for k in self.query:
+                if k in self.index:
+                    if docId in self.index[k]:
+                        count = self.index[k][docId]
+                    else:
+                        count = 0
+                    tfDict[docId][k] = count
+                else:
+                    tfDict[docId][k] = 0
         return tfDict
     
-    # 计算含有query词的文件关于query词的idf
-    def idfCalc(self,query,collectionSize):
-        # df_w: number of documents containing w
-        # 计算idf
-        idfDict={}
-        for k in query:
-            if k in self.index:
-                if len(self.index[k]) == 0:
-                    idf = 0
-                else:
-                    idf = math.log(collectionSize / len(self.index[k]))
-                idfDict[k] = idf
-        return idfDict
-    
-    
     # 计算document中的tfidf值
-    def tfIdfCalc(self,query,tfDict,idfDict):
+    def tfIdfCalc(self, tfDict):
         tfIdfDict = {}
         for docId in self.doc_ids:
             tfIdfDict[docId] = {}
-            for k in query:
-                if k in self.index:
+            for k in self.query:
+                if k in self.index:   
                     tf = tfDict[docId][k]
-                    idf = idfDict[k]
+                    idf = math.log(self.num_docs / len(self.index[k]))
                     tfIdf = tf * idf
                     tfIdfDict[docId][k] = tfIdf
         return tfIdfDict
     
     # 计算query中的tfidf值
-    def q_tfIdfCalc(self,query,idfDict):
+    def q_tfIdfCalc(self):
         queryTfIdf = {}
-        for k in query:
+        for k in self.query:
             if k in self.index:
-                tf = query[k]
-                idf = idfDict[k]
+                tf = self.query[k]
+                idf = math.log(self.num_docs / len(self.index[k]))
                 tfIdf = tf * idf
                 queryTfIdf[k] = tfIdf
         return  queryTfIdf    
