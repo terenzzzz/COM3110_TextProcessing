@@ -81,6 +81,7 @@ class CommandLine:
             
         choice = 'queries_stoplist_%s_stemming_%s' % (stoplist, stemming)
         self.queries = all_data[choice]
+        
         # Whats the figure mean 
         # print(self.queries)
             
@@ -123,8 +124,8 @@ if __name__ == '__main__':
     retrieve = Retrieve(config.index, config.term_weighting)
     all_results = Result_Store()
 
+    # for (qid, query) in queries[:1]:
     for (qid, query) in queries:
-         
         results = retrieve.for_query(query)
         # results = retrieve.for_query(exampleList)
         all_results.store(qid, results)
