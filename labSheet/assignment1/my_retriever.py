@@ -31,6 +31,7 @@ class Retrieve:
     def for_query(self, query):
         # 调用processQuery处理query
         self.query = self.processQuery(query)
+        self.candidate = self.getCandidate(self.query)
         
 #==============================================================================       
         
@@ -41,29 +42,22 @@ class Retrieve:
 # Binary Mode
         if self.term_weighting == 'binary':
             # 判断query词是否出现在document中
-            for docId in self.doc_ids:
-                docVector[docId] = {}
+            # 计算文件里有多少个Term
+            doc_TermNum = self.compute_TermNum_doc()
+            
+            for doc in self.candidate:
+                qd_product = 0
+                d_vec_len = doc_TermNum[doc]
+                
                 for k in self.query:
                     if k in self.index:
-                        if docId in self.index[k]:
-                            binaryNum = 1
+                        if doc in self.index[k]:
+                            count = 1
                         else:
-                            binaryNum = 0
-                        docVector[docId][k] = binaryNum
-
-            
-            # 计算文件里有多少个Term
-            doc_TermCount = {}
-            for term in self.index:
-                for docId in self.index[term]:
-                    if docId in doc_TermCount:
-                        doc_TermCount[docId] += 1
-                    else:
-                        doc_TermCount[docId] = 0
-
-                        
-            # 调用相似度计算返回结果
-            result = self.simCalc_binary(doc_TermCount,docVector)
+                            count = 0
+                        qd_product += count
+                sim = qd_product / math.sqrt(d_vec_len)
+                result[doc] = sim
             
 #==============================================================================                    
 # TF(Term Frequency) Mode
@@ -160,6 +154,17 @@ class Retrieve:
 #==============================================================================
 # Helper
 
+    # 
+    def compute_TermNum_doc(self):
+        doc_TermNum = {}
+        for term in self.index:
+            for docId in self.index[term]:
+                if docId in doc_TermNum:
+                    doc_TermNum[docId] += 1
+                else:
+                    doc_TermNum[docId] = 0
+        return doc_TermNum
+
     # 计算Term Frequency
     def tfCalc(self):
         # 计算关键词在每篇文章中出现的次数(tf)
@@ -221,3 +226,12 @@ class Retrieve:
             else:
                 quertDict[q] = 1
         return quertDict
+    
+    # 获取候选文件id
+    def getCandidate(self,query):
+        candidateIdSet = set()
+        for kw in query:
+            if kw in self.index:
+                for docId in self.index[kw]:
+                    candidateIdSet.add(docId)
+        return candidateIdSet
