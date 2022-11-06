@@ -18,6 +18,7 @@ class Retrieve:
         self.num_docs = self.compute_number_of_documents()
         
         self.doc_term_num = self.TermNum_doc() # 计算关键词出现在每篇文章中的次数
+        self.d_vec_len = self.doc_vec_len()
         
         if self.term_weighting == 'tfidf':
             self.idf_doc_term = self.idf_doc_term()
@@ -39,7 +40,6 @@ class Retrieve:
         self.candidate = self.getCandidate(self.query)
         self.result = {} # 返回十个最相关文件的id
         
-            
 #==============================================================================
 # Binary Mode
         if self.term_weighting == 'binary':
@@ -74,7 +74,7 @@ class Retrieve:
                     
                 # compute d_vec_len
                 for term in self.doc_term_num[doc]:
-                    d_vec_len += self.doc_term_num[doc][term] * self.doc_term_num[doc][term]
+                    d_vec_len += self.d_vec_len[doc][term]
 
                 sim = qd_product / math.sqrt(d_vec_len)
                 self.result[doc] = sim
@@ -131,7 +131,15 @@ class Retrieve:
             for term in self.doc_term_num[doc]:
                 idfDict[doc][term]= math.log(self.num_docs / len(self.index[term]))
         return idfDict
-        
+    
+    def doc_vec_len(self):
+        doc_vec_len = {}
+        for doc in self.doc_term_num:
+            doc_vec_len[doc] = {}
+            for term in self.doc_term_num[doc]:
+                doc_vec_len[doc][term] = self.doc_term_num[doc][term] * self.doc_term_num[doc][term]
+        return doc_vec_len
+    
     # 排序方法
     def rankTop(self,result):
         top_10 = []
