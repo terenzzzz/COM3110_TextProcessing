@@ -16,8 +16,11 @@ class Retrieve:
         self.index = index
         self.term_weighting = term_weighting
         self.num_docs = self.compute_number_of_documents()
-        # 计算关键词出现在每篇文章中的次数
-        self.doc_term_num = self.TermNum_doc()
+        
+        self.doc_term_num = self.TermNum_doc() # 计算关键词出现在每篇文章中的次数
+        
+        if self.term_weighting == 'tfidf':
+            self.idf_doc_term = self.idf_doc_term()
 
     def compute_number_of_documents(self):
         self.doc_ids = set() 
@@ -82,11 +85,11 @@ class Retrieve:
             for doc in self.candidate:
                 qd_product = 0
                 d_vec_len = 0
-                
+
                 for term in self.query:
                     if term in self.index and doc in self.index[term]:
                         d_tf = self.doc_term_num[doc][term]
-                        idf = math.log(self.num_docs / len(self.index[term]))
+                        idf = self.idf_doc_term[doc][term]
                         q_tf = self.query[term]
                         d_tfIdf = d_tf * idf
                         q_tfidf = q_tf * idf
@@ -94,7 +97,7 @@ class Retrieve:
                         
                 for term in self.doc_term_num[doc]:
                     if term in self.index:
-                        idf = math.log(self.num_docs / len(self.index[term]))
+                        idf = self.idf_doc_term[doc][term]
                         d = self.doc_term_num[doc][term] * idf
                         d_vec_len += d * d
                     
@@ -120,6 +123,14 @@ class Retrieve:
                     if term not in doc_TermNum[doc]:
                         doc_TermNum[doc][term] = num
         return doc_TermNum
+    
+    def idf_doc_term(self):
+        idfDict = {}
+        for doc in self.doc_term_num:
+            idfDict[doc] = {}
+            for term in self.doc_term_num[doc]:
+                idfDict[doc][term]= math.log(self.num_docs / len(self.index[term]))
+        return idfDict
         
     # 排序方法
     def rankTop(self,result):
