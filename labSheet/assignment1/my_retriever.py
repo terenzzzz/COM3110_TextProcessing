@@ -16,6 +16,8 @@ class Retrieve:
         self.index = index
         self.term_weighting = term_weighting
         self.num_docs = self.compute_number_of_documents()
+        # 计算关键词出现在每篇文章中的次数
+        self.doc_term_num = self.TermNum_doc()
 
     def compute_number_of_documents(self):
         self.doc_ids = set() 
@@ -33,14 +35,11 @@ class Retrieve:
         self.query = self.processQuery(query)
         self.candidate = self.getCandidate(self.query)
         self.result = {} # 返回十个最相关文件的id
-        # 计算关键词出现在每篇文章中的次数
-        self.doc_term_num = self.TermNum_doc()
+        
             
 #==============================================================================
 # Binary Mode
         if self.term_weighting == 'binary':
-
-            
             for doc in self.candidate:
                 qd_product = 0
                 d_vec_len = len(self.doc_term_num[doc])
@@ -99,7 +98,6 @@ class Retrieve:
                         d = self.doc_term_num[doc][term] * idf
                         d_vec_len += d * d
                     
-                      
                 sim = qd_product / math.sqrt(d_vec_len)
                 self.result[doc] = sim
 #==============================================================================
@@ -112,7 +110,7 @@ class Retrieve:
     # 计算文章所有词出现次数
     def TermNum_doc(self):    
         doc_TermNum = {}
-        for doc in self.candidate:
+        for doc in self.doc_ids:
             doc_TermNum[doc] = {}
             
         for term in self.index:
