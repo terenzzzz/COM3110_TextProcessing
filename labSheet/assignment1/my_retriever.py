@@ -19,14 +19,22 @@ class Retrieve:
         
         self.doc_term_num() # pre-compute the number of term in every document
         
-        if self.term_weighting == 'tf':
-            self.doc_vec_len_tf()  # pre-compute the document vector length in every document
-            
         if self.term_weighting == 'tfidf':
-            self.idf_doc_term() # pre-compute the idf for each term in every document
-            self.doc_vec_len_tfidf()
+            self.idf_doc_term() 
+        
+        # pre-compute the document vector length in every document
+        if self.term_weighting != 'binary':
+            self.doc_vec_len_dict = {}
+            for doc in self.doc_term_num:
+                self.doc_vec_len_dict[doc] = 0
+                for term in self.doc_term_num[doc]:
+                    if self.term_weighting == 'tf':
+                        self.doc_vec_len_dict[doc] += self.doc_term_num[doc][term] * self.doc_term_num[doc][term]
+                    elif self.term_weighting == 'tfidf':
+                        idf = self.idfDict[doc][term]
+                        d = self.doc_term_num[doc][term] * idf
+                        self.doc_vec_len_dict[doc] += d * d
 
-            
 
     def compute_number_of_documents(self):
         self.doc_ids = set() 
@@ -129,14 +137,6 @@ class Retrieve:
                     if term not in self.doc_term_num [doc]:
                         self.doc_term_num[doc][term] = num
     
-    # length of document vector for tf
-    def doc_vec_len_tf(self):
-        self.doc_vec_len_dict = {}
-        for doc in self.doc_term_num:
-            self.doc_vec_len_dict[doc] = 0
-            for term in self.doc_term_num[doc]:
-                self.doc_vec_len_dict[doc] += self.doc_term_num[doc][term] * self.doc_term_num[doc][term]
-    
     # Idf for the terms in every document
     def idf_doc_term(self):
         self.idfDict = {}
@@ -145,15 +145,7 @@ class Retrieve:
             for term in self.doc_term_num[doc]:
                 self.idfDict[doc][term]= math.log(self.num_docs / len(self.index[term]))
                 
-    # length of document vector for tfidf
-    def doc_vec_len_tfidf(self):
-        self.doc_vec_len_dict = {}
-        for doc in self.doc_term_num:
-            self.doc_vec_len_dict[doc] = 0
-            for term in self.doc_term_num[doc]:
-                idf = self.idfDict[doc][term]
-                d = self.doc_term_num[doc][term] * idf
-                self.doc_vec_len_dict[doc] += d * d
+
     
     # Rank the top 10 document and return a list of id
     def rankTop(self,result):

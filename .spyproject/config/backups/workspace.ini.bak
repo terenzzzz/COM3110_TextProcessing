@@ -4,7 +4,7 @@ save_data_on_exit = True
 save_history = True
 save_non_project_files = False
 project_type = 'empty-project-type'
-recent_files = ['labSheet/week4/postagger_STARTER_CODE.py', '../TextProcessing/labSheet/week4/POSTAG_DATA/training_data.txt', '../TextProcessing/labSheet/week4/POSTAG_DATA/test_data.txt', '../TextProcessing/labSheet/week3/compare.PY']
+recent_files = ['labSheet/assignment1/eval_ir.py', 'labSheet/assignment1/IR_engine.py', '../TextProcessing/labSheet/assignment1/my_retriever.py']
 
 [main]
 version = 0.2.0
