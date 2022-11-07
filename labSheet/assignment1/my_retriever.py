@@ -17,13 +17,14 @@ class Retrieve:
         self.term_weighting = term_weighting
         self.num_docs = self.compute_number_of_documents()
         
-        self.doc_term_num() # 计算关键词出现在每篇文章中的次数
+        self.doc_term_num() # pre-compute the number of term in every document
         
         if self.term_weighting == 'tf':
-            self.doc_vec_len()
+            self.doc_vec_len_tf()  # pre-compute the document vector length in every document
             
         if self.term_weighting == 'tfidf':
-            self.idf_doc_term()
+            self.idf_doc_term() # pre-compute the idf for each term in every document
+            self.doc_vec_len_tfidf()
 
             
 
@@ -37,20 +38,24 @@ class Retrieve:
     # Method performing retrieval for a single query (which is 
     # represented as a list of preprocessed terms). Returns list 
     # of doc ids for relevant docs (in rank order).
-    
     def for_query(self, query):
-        # 调用processQuery处理query
+        # pre-process the query into a dictionary to advoide same terms
         self.query = self.processQuery(query)
-        self.candidate = self.getCandidate(self.query)
-        self.result = {} # 返回十个最相关文件的id
+        # return self.candidate about all the document related to the query
+        self.getCandidate(self.query) 
+        # to save top 10 relevent document id
+        self.result = {} 
         
 #==============================================================================
 # Binary Mode
         if self.term_weighting == 'binary':
+            # loop to calculate similarity for all the candidate document
             for doc in self.candidate:
                 qd_product = 0
+                # the size of the document
                 d_vec_len = len(self.doc_term_num[doc])
                 
+                # Calculate the qd_product for this document
                 for k in self.query:
                     if k in self.index:
                         if doc in self.index[k]:
@@ -58,6 +63,7 @@ class Retrieve:
                         else:
                             count = 0
                         qd_product += count
+                # similarity calculation
                 sim = qd_product / math.sqrt(d_vec_len)
                 self.result[doc] = sim
             
@@ -65,31 +71,31 @@ class Retrieve:
 # TF(Term Frequency) Mode
 
         elif self.term_weighting == 'tf':
+            # loop to calculate similarity for all the candidate document
             for doc in self.candidate:
                 qd_product = 0
-                d_vec_len = 0
+                d_vec_len = self.doc_vec_len_dict[doc]
                 
-                # compute qd_product
+                # Calculate the qd_product for this document
                 for term in self.query:
                     if term in self.index and doc in self.index[term]:
                         d = self.doc_term_num[doc][term]
                         q = self.query[term]
                         qd_product += d*q
                     
-                # compute d_vec_len
-                for term in self.doc_term_num[doc]:
-                    d_vec_len += self.doc_vec_len_dict[doc][term]
-
+                # similarity calculation
                 sim = qd_product / math.sqrt(d_vec_len)
                 self.result[doc] = sim
             
 #==============================================================================    
 # TF.IDF
         else:
+            # loop to calculate similarity for all the candidate document
             for doc in self.candidate:
                 qd_product = 0
-                d_vec_len = 0
-
+                d_vec_len = self.doc_vec_len_dict[doc]
+                
+                # Calculate the qd_product for this document
                 for term in self.query:
                     if term in self.index and doc in self.index[term]:
                         idf = self.idfDict[doc][term]
@@ -98,12 +104,8 @@ class Retrieve:
                         d_tfIdf = d_tf * idf
                         q_tfidf = q_tf * idf
                         qd_product += d_tfIdf * q_tfidf
-                        
-                for term in self.doc_term_num[doc]:
-                    idf = self.idfDict[doc][term]
-                    d = self.doc_term_num[doc][term] * idf
-                    d_vec_len += d * d
                     
+                # similarity calculation    
                 sim = qd_product / math.sqrt(d_vec_len)
                 self.result[doc] = sim
 #==============================================================================
@@ -113,7 +115,8 @@ class Retrieve:
 
 #==============================================================================
 # Helper
-    # 计算文章所有词出现次数
+
+    # Compute the number of terms appear in every document
     def doc_term_num(self):    
         self.doc_term_num = {}
         for doc in self.doc_ids:
@@ -125,24 +128,31 @@ class Retrieve:
                     if term not in self.doc_term_num [doc]:
                         self.doc_term_num[doc][term] = num
     
+    # length of document vector for tf
+    def doc_vec_len_tf(self):
+        self.doc_vec_len_dict = {}
+        for doc in self.doc_term_num:
+            self.doc_vec_len_dict[doc] = 0
+            for term in self.doc_term_num[doc]:
+                self.doc_vec_len_dict[doc] += self.doc_term_num[doc][term] * self.doc_term_num[doc][term]
     
+    # Idf for the terms in every document
     def idf_doc_term(self):
         self.idfDict = {}
         for doc in self.doc_term_num:
             self.idfDict[doc] = {}
             for term in self.doc_term_num[doc]:
                 self.idfDict[doc][term]= math.log(self.num_docs / len(self.index[term]))
-
-    
-    def doc_vec_len(self):
+                
+    # length of document vector for tfidf
+    def doc_vec_len_tfidf(self):
         self.doc_vec_len_dict = {}
         for doc in self.doc_term_num:
-            self.doc_vec_len_dict[doc] = {}
+            self.doc_vec_len_dict[doc] = 0
             for term in self.doc_term_num[doc]:
-                self.doc_vec_len_dict[doc][term] = self.doc_term_num[doc][term] * self.doc_term_num[doc][term]
-        
-    
-    
+                idf = self.idfDict[doc][term]
+                d = self.doc_term_num[doc][term] * idf
+                self.doc_vec_len_dict[doc] += d * d
     
     # 排序方法
     def rankTop(self,result):
@@ -164,9 +174,8 @@ class Retrieve:
     
     # 获取候选文件id
     def getCandidate(self,query):
-        candidateIdSet = set()
+        self.candidate = set()
         for term in query:
             if term in self.index:
                 for docId in self.index[term]:
-                    candidateIdSet.add(docId)
-        return candidateIdSet
+                    self.candidate.add(docId)
