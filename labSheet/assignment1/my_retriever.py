@@ -17,11 +17,15 @@ class Retrieve:
         self.term_weighting = term_weighting
         self.num_docs = self.compute_number_of_documents()
         
-        self.doc_term_num = self.TermNum_doc() # 计算关键词出现在每篇文章中的次数
-        self.d_vec_len = self.doc_vec_len()
+        self.doc_term_num() # 计算关键词出现在每篇文章中的次数
         
+        if self.term_weighting == 'tf':
+            self.doc_vec_len()
+            
         if self.term_weighting == 'tfidf':
-            self.idf_doc_term = self.idf_doc_term()
+            self.idf_doc_term()
+
+            
 
     def compute_number_of_documents(self):
         self.doc_ids = set() 
@@ -74,7 +78,7 @@ class Retrieve:
                     
                 # compute d_vec_len
                 for term in self.doc_term_num[doc]:
-                    d_vec_len += self.d_vec_len[doc][term]
+                    d_vec_len += self.doc_vec_len_dict[doc][term]
 
                 sim = qd_product / math.sqrt(d_vec_len)
                 self.result[doc] = sim
@@ -88,18 +92,17 @@ class Retrieve:
 
                 for term in self.query:
                     if term in self.index and doc in self.index[term]:
+                        idf = self.idfDict[doc][term]
                         d_tf = self.doc_term_num[doc][term]
-                        idf = self.idf_doc_term[doc][term]
                         q_tf = self.query[term]
                         d_tfIdf = d_tf * idf
                         q_tfidf = q_tf * idf
                         qd_product += d_tfIdf * q_tfidf
                         
                 for term in self.doc_term_num[doc]:
-                    if term in self.index:
-                        idf = self.idf_doc_term[doc][term]
-                        d = self.doc_term_num[doc][term] * idf
-                        d_vec_len += d * d
+                    idf = self.idfDict[doc][term]
+                    d = self.doc_term_num[doc][term] * idf
+                    d_vec_len += d * d
                     
                 sim = qd_product / math.sqrt(d_vec_len)
                 self.result[doc] = sim
@@ -111,34 +114,35 @@ class Retrieve:
 #==============================================================================
 # Helper
     # 计算文章所有词出现次数
-    def TermNum_doc(self):    
-        doc_TermNum = {}
+    def doc_term_num(self):    
+        self.doc_term_num = {}
         for doc in self.doc_ids:
-            doc_TermNum[doc] = {}
-            
+            self.doc_term_num[doc] = {}
         for term in self.index:
             for doc in self.index[term]:
                 num = self.index[term][doc]
-                if doc in doc_TermNum:
-                    if term not in doc_TermNum[doc]:
-                        doc_TermNum[doc][term] = num
-        return doc_TermNum
+                if doc in self.doc_term_num :
+                    if term not in self.doc_term_num [doc]:
+                        self.doc_term_num[doc][term] = num
+    
     
     def idf_doc_term(self):
-        idfDict = {}
+        self.idfDict = {}
         for doc in self.doc_term_num:
-            idfDict[doc] = {}
+            self.idfDict[doc] = {}
             for term in self.doc_term_num[doc]:
-                idfDict[doc][term]= math.log(self.num_docs / len(self.index[term]))
-        return idfDict
+                self.idfDict[doc][term]= math.log(self.num_docs / len(self.index[term]))
+
     
     def doc_vec_len(self):
-        doc_vec_len = {}
+        self.doc_vec_len_dict = {}
         for doc in self.doc_term_num:
-            doc_vec_len[doc] = {}
+            self.doc_vec_len_dict[doc] = {}
             for term in self.doc_term_num[doc]:
-                doc_vec_len[doc][term] = self.doc_term_num[doc][term] * self.doc_term_num[doc][term]
-        return doc_vec_len
+                self.doc_vec_len_dict[doc][term] = self.doc_term_num[doc][term] * self.doc_term_num[doc][term]
+        
+    
+    
     
     # 排序方法
     def rankTop(self,result):
