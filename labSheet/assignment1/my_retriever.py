@@ -63,6 +63,7 @@ class Retrieve:
                         else:
                             count = 0
                         qd_product += count
+                        
                 # similarity calculation
                 sim = qd_product / math.sqrt(d_vec_len)
                 self.result[doc] = sim
@@ -154,7 +155,7 @@ class Retrieve:
                 d = self.doc_term_num[doc][term] * idf
                 self.doc_vec_len_dict[doc] += d * d
     
-    # 排序方法
+    # Rank the top 10 document and return a list of id
     def rankTop(self,result):
         top_10 = []
         sort = sorted(result.items(),key=lambda x:-x[1])[:10]
@@ -162,7 +163,7 @@ class Retrieve:
             top_10.append(docId)
         return top_10
     
-    # 处理queryList 返回set 排除重复词
+    # Pre-process the query to advoide same terms
     def processQuery(self,query):
         quertDict={}
         for term in query:
@@ -172,7 +173,7 @@ class Retrieve:
                 quertDict[term] = 1
         return quertDict
     
-    # 获取候选文件id
+    # Get candidate document and return a set of docId
     def getCandidate(self,query):
         self.candidate = set()
         for term in query:
