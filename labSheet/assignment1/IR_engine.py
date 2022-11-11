@@ -132,4 +132,4 @@ if __name__ == '__main__':
 
     all_results.output(config.outfile)
     endtime = datetime.datetime.now()
-    print ('Running Time: ', (endtime - starttime))
+    # print ('Running Time: ', (endtime - starttime))
