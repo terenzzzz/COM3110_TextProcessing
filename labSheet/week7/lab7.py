@@ -47,10 +47,14 @@ with open(filename, 'r') as in_file:
 print(f"Loaded {len(tweets)} tweets.")
 
 test_tweets = [
-    "He says I'm depressed most of the time. #sad",
+    "That U.S.A. poster-print costs $12.40...",
+    "He says I'm depressed most of the time. #sad ",
     "For the first time I get to see @username actually being hateful! it was beautiful:)",
     '''"The San Francisco-based restaurant" they said, "doesn't charge $10.5"'''
 ]
 
 ################################################################
+for t in test_tweets:
+    list = re.findall(r'(?x)(?:[A-Z]\.)+| \w+(?:-\w+)*| \$?\d+(?:\.\d+)?%?｜\.\.\.',t)
+    print (list)
 
