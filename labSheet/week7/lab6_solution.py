@@ -43,7 +43,7 @@ filename = args[0]
 
 tweets = []
 
-with open(filename, 'r') as in_file:
+with open(filename, 'r', encoding='UTF-8' ) as in_file:
     reader = csv.reader(in_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     for row in reader:
         tweets.append(row[2])
