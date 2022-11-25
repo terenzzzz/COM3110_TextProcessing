@@ -5,7 +5,7 @@ NB sentiment analyser.
 Start code.
 """
 import argparse
-
+import pandas as pd
 """
 IMPORTANT, modify this part with your details
 """
@@ -50,6 +50,35 @@ def main():
     ADD YOUR CODE HERE
     Create functions and classes, using the best practices of Software Engineering
     """
+    
+    
+    # read Phrases from file
+    class Phrases:
+        def __init__(self,sentenceId,phrase,sentiment):
+            self.sentenceId = sentenceId
+            self.phrase = phrase
+            self.sentiment = sentiment
+        
+        def phrases(filename):
+            df = pd.read_csv(dev,index_col=0, delimiter="\t")
+            print(df['Phrase'])
+            phrases=[]
+            for index,row in df.iterrows():
+                phrase = Phrases(index,row['Phrase'].split(),row['Sentiment'])
+                phrases.append(phrase)
+            return phrases
+        
+
+    # Preprosess
+    # def preprosess(phrase):
+        
+        
+          
+            
+            
+    
+
+    
     
     #You need to change this in order to return your macro-F1 score for the dev set
     f1_score = 0
