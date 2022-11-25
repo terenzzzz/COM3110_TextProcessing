@@ -51,6 +51,13 @@ def main():
     Create functions and classes, using the best practices of Software Engineering
     """
     
+    """
+    training set -> estimate probabilities
+    development set -> design the model
+    test set -> evaluate generalisation power
+    s∗ = argmax p(si) ∏ p(tj|si)
+    """
+    
     
     # read Phrases from file
     class Phrases:
