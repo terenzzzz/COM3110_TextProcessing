@@ -34,7 +34,7 @@ class Phrasesor:
         self.sentent = sentent
         self.sentiment = sentiment
     
-    def phrases(filename):
+    def load(filename):
         df = pd.read_csv(filename,index_col=0, delimiter="\t")
         phrases=[]
         for index,row in df.iterrows():
@@ -45,7 +45,6 @@ class Phrasesor:
 
 # Preprosessor
 class Processor:
-    
     def __init__(self,phrases):
         self.phrases = phrases
     
@@ -60,9 +59,10 @@ class Processor:
                     newSentent.append(word)
             phrase.sentent = newSentent
         return self.phrases
+
     
     
-    def map5to3(self):
+    def to_3(self):
         for phrase in self.phrases:
             sentiment = phrase.sentiment
             if sentiment == 0 or sentiment == 1:
@@ -72,48 +72,73 @@ class Processor:
             elif sentiment == 3 or sentiment == 4:
                 phrase.sentiment = 2
         return self.phrases
+
     
 # Trining     
 class Trainer:
-    def __init__(self, phrases):
+    def __init__(self, phrases,classes):
         self.phrases = phrases
-        self.classCountor()
-        self.phraseClassifier()
-        self.priorProbabilityCalc()
-        self.fearureCountor()
-        self.likelihoodCalc()
+        self.classes = classes
         
-    def classCountor(self):
-        self.negCount=0
-        self.neuCount=0
-        self.posCount=0
+        # self.classCountor()
+        # self.phraseClassifier()
+        # self.priorProbabilityCalc()
+        # self.fearureCountor()
+        # self.likelihoodCalc()
+        
+        
+    """
+    dict: {class : priorProbabiliry}
+    """
+    def class_count(self):
+        class_count_dict = {} # dict: {class : count}
+        for i in range(self.classes):
+            class_count_dict[i] = 0
+        
         for phrase in self.phrases:
-            sentiment = phrase.sentiment
-            if sentiment == 0:
-                self.negCount+=1
-            elif sentiment == 1:
-                self.neuCount+=1
-            elif sentiment == 2:
-                self.posCount+=1
-            else:
-                print("classCountor Error!")
-        self.classCount = self.negCount + self.neuCount + self.posCount
+            class_count_dict[phrase.sentiment] += 1
+        return class_count_dict
+    
+    def class_prior(self):
+        class_prior_dict = {} # dict: {class : priorProbabiliry}
+        total_class_count = 0
         
+        class_count_dict = self.class_count()
+        for i in class_count_dict:
+            total_class_count += class_count_dict[i]
+            
+        for i in range(self.classes):
+            class_prior_dict[i] = 0
         
-    def phraseClassifier(self):
-        self.posPhrase = []
-        self.neuPhrase = []
-        self.negPhrase = []
+        for i in class_count_dict:
+            class_prior_dict[i] = class_count_dict[i]/total_class_count
+        return class_prior_dict
+        
+    def vocabulary_count(self):
+        vocabulary_count = 0
         for phrase in self.phrases:
-            sentiment = phrase.sentiment
-            if sentiment == 0:
-                self.posPhrase.append(phrase)
-            elif sentiment == 1:
-                self.neuPhrase.append(phrase)
-            elif sentiment == 2:
-                self.negPhrase.append(phrase)
-            else:
-                print("phraseClassifier Error!")
+            vocabulary_count += len(phrase.sentent)
+        return vocabulary_count
+    
+    def feature_likelihood(self):
+        feature_likelihood = {} # dict: {feature : likelihood}
+        return feature_likelihood
+    
+    def class_features_count(self):
+        class_features_count = {}  # dict: {class : {feature:count}}
+        
+        for i in range(self.classes):
+            class_features_count[i] = {}
+        
+        for phrase in self.phrases:
+            for word in phrase.sentent:
+                if word in class_features_count[phrase.sentiment]:
+                    class_features_count[phrase.sentiment][word] += 1
+                else:
+                    class_features_count[phrase.sentiment][word] = 1
+        return class_features_count
+                
+
                 
     def fearureCountor(self):
         self.posFeatureCount = 0
@@ -150,11 +175,6 @@ class Trainer:
                     self.negFeature[word]=1
                     self.negFeatureCount+=1
 
-    def priorProbabilityCalc(self):
-        self.negPrior = self.negCount / self.classCount
-        self.neuPrior = self.neuCount / self.classCount
-        self.posPrior = self.posCount / self.classCount
-
     
     def likelihoodCalc(self):
        self.posLikelihood = {}
@@ -177,11 +197,60 @@ class Predictor:
         self.metadata = metadata
         
     def predict(self,phrases):
-        result = []
+        # Final predict class = max(PriorProbability * sum of features likelyhood)
+        result = {}        
         for phrase in phrases:
-            print(phrase.sentent)
+            negPredict=self.metadata.posPrior
+            neuPredict=self.metadata.posPrior
+            posPredict=self.metadata.posPrior
+            for word in phrase.sentent:
+                if word in self.metadata.negLikelihood:
+                    negPredict *= self.metadata.negLikelihood[word]
+                else:
+                    negPredict *=0
+                if word in self.metadata.neuLikelihood:
+                    neuPredict *= self.metadata.neuLikelihood[word]
+                else:
+                    negPredict *=0
+                if word in self.metadata.posLikelihood:
+                    posPredict *= self.metadata.posLikelihood[word]
+                else:
+                    posPredict *=0
+            resultList = [negPredict,neuPredict,posPredict]
+            prediction = resultList.index(max(resultList))
+            result[phrase.phraseId] = prediction
+        return result
+
+class Evaluator:
+    def __init__(self,phrases,predictResult):
+        self.phrases = phrases
+        self.predictResult = predictResult
     
+    def F1Calc(self,className):
+        # for class 0
+        TP = 0
+        FP = 0
+        FN = 0
+        for phrase in self.phrases:
+            if self.predictResult[phrase.phraseId] == phrase.sentiment:
+                if phrase.sentiment == className:
+                    TP += 1
+            else:
+                if phrase.sentiment == className:
+                    FP += 1
+                else:
+                    FN += 1
+        F1 = 2*TP / (2*TP + FP + FN)
+        return F1
     
+    def macroF1Calc(self,F1):
+        N = len(F1)
+        total = 0
+        for i in range(N):
+            total += F1[i]
+        macroF1 = 1/N * total
+        return macroF1
+            
 
 def main():
     
@@ -205,29 +274,23 @@ def main():
     #whether to print confusion matrix (default = no confusion matrix)
     confusion_matrix = inputs.confusion_matrix
     
-    """
-    ADD YOUR CODE HERE
-    Create functions and classes, using the best practices of Software Engineering
-    """
-    
-    """
-    training set -> estimate probabilities
-    development set -> design the model
-    test set -> evaluate generalisation power
-    s∗ = argmax p(si) ∏ p(tj|si)
-    """
-    
 
-    
-    
 ################################## Training ######################################
     #Preprocessing
     # print('='*50,' Training','='*50)
-    # phrases = Phrasesor.phrases(training)
-    # processed = Processor(phrases).preProsess()
-    # to3Class = Processor(processed).map5to3()
-    # # Training
-    # trainer = Trainer(to3Class)
+    phrases = Phrasesor.load(training)
+    processed = Processor(phrases).preProsess()
+    if number_classes == 5:
+        phrases_scaled = processed
+    else:
+        phrases_scaled = Processor(processed).to_3()
+
+
+    # Training
+    trainer = Trainer(phrases_scaled,number_classes)
+    print(trainer.class_features_count())
+    print(len(trainer.class_features_count()))
+
     # with open('Training_model', 'wb') as f:
     #         pickle.dump(trainer, f)
 
@@ -239,20 +302,32 @@ def main():
     
 ################################## Developing ######################################
     # load model
-    with open('Training_model', 'rb') as f:
-        corpus_meta = pickle.load(f)
-    predictor = Predictor(corpus_meta)
+    # with open('Training_model', 'rb') as f:
+    #     corpus_meta = pickle.load(f)
+    # predictor = Predictor(corpus_meta)
     
+    # #Preprocessing
+    # phrases = Phrasesor.phrases(dev)
+    # processed = Processor(phrases).preProsess()
+    # to3Class = Processor(processed).map5to3()
+    # predictResult = predictor.predict(to3Class)
+    # with open("result", 'w') as f:
+    #     f.write('SentenceId\tSentiment\n')
+    #     for i in predictResult:
+    #             f.write(str(i) + '\t' +
+    #                     str(predictResult[i]) + '\n')
+                
+################################## Evaluate ######################################
     #Preprocessing
-    phrases = Phrasesor.phrases(dev)
-    processed = Processor(phrases).preProsess()
-    to3Class = Processor(processed).map5to3()
-    predictResult = predictor.predict(to3Class)
+    # evaluator = Evaluator(to3Class,predictResult)
+    # F1_0 = evaluator.F1Calc(0)
+    # F1_1 = evaluator.F1Calc(1)
+    # F1_2 = evaluator.F1Calc(2)
+    # print(F1_0,F1_1,F1_2)
+    # macroF1 = evaluator.macroF1Calc([F1_0,F1_1,F1_2])
     
-    
-    #You need to change this in order to return your macro-F1 score for the dev set
-    f1_score = 0
-    
+    macroF1 = 0
+
 
     """
     IMPORTANT: your code should return the lines below. 
@@ -261,7 +336,7 @@ def main():
     #print("Student\tNumber of classes\tFeatures\tmacro-F1(dev)\tAccuracy(dev)")
     print()
     print('='*50,'Evaluation','='*50)
-    print("%s\t%d\t%s\t%f" % (USER_ID, number_classes, features, f1_score))
+    print("%s\t%d\t%s\t%f" % (USER_ID, number_classes, features, macroF1))
 
 if __name__ == "__main__":
     main()
