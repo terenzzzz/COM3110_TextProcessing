@@ -79,17 +79,9 @@ class Trainer:
     def __init__(self, phrases,classes):
         self.phrases = phrases
         self.classes = classes
-        
-        # self.classCountor()
-        # self.phraseClassifier()
-        # self.priorProbabilityCalc()
-        # self.fearureCountor()
-        # self.likelihoodCalc()
-        
-        
-    """
-    dict: {class : priorProbabiliry}
-    """
+        self.prior = self.class_prior()
+        self.likelihood = self.class_feature_likelihood()
+
     def class_count(self):
         class_count_dict = {} # dict: {class : count}
         for i in range(self.classes):
@@ -114,15 +106,13 @@ class Trainer:
             class_prior_dict[i] = class_count_dict[i]/total_class_count
         return class_prior_dict
         
-    def vocabulary_count(self):
-        vocabulary_count = 0
+    def vocabulary(self):
+        vocabulary = set()
         for phrase in self.phrases:
-            vocabulary_count += len(phrase.sentent)
-        return vocabulary_count
+            for word in phrase.sentent:
+                vocabulary.add(word)
+        return vocabulary
     
-    def feature_likelihood(self):
-        feature_likelihood = {} # dict: {feature : likelihood}
-        return feature_likelihood
     
     def class_features_count(self):
         class_features_count = {}  # dict: {class : {feature:count}}
@@ -137,88 +127,64 @@ class Trainer:
                 else:
                     class_features_count[phrase.sentiment][word] = 1
         return class_features_count
-                
-
-                
-    def fearureCountor(self):
-        self.posFeatureCount = 0
-        self.posFeature = {}
-        for phrase in self.posPhrase:
-            for word in phrase.sentent:
-                if word in self.posFeature:
-                    self.posFeature[word]+=1
-                    self.posFeatureCount+=1
-                else:
-                    self.posFeature[word]=1
-                    self.posFeatureCount+=1
-                    
-        self.neuFeatureCount = 0
-        self.neuFeature = {}
-        for phrase in self.neuPhrase:
-            for word in phrase.sentent:
-                if word in self.neuFeature:
-                    self.neuFeature[word]+=1
-                    self.neuFeatureCount+=1
-                else:
-                    self.neuFeature[word]=1
-                    self.neuFeatureCount+=1
-                    
+    
+    def class_featureTotal(self):
+        class_featureTotal = {} # dict: {class : featureTotal}
         
-        self.negFeatureCount = 0
-        self.negFeature = {}
-        for phrase in self.negPhrase:
-            for word in phrase.sentent:
-                if word in self.negFeature:
-                    self.negFeature[word]+=1
-                    self.negFeatureCount+=1
-                else:
-                    self.negFeature[word]=1
-                    self.negFeatureCount+=1
-
-    
-    def likelihoodCalc(self):
-       self.posLikelihood = {}
-       for feature in self.posFeature:
-           self.posLikelihood[feature] = self.posFeature[feature] / self.posFeatureCount
-           
-       self.neuLikelihood = {}
-       for feature in self.neuFeature:
-            self.neuLikelihood[feature] = self.neuFeature[feature] / self.neuFeatureCount
+        for i in range(self.classes):
+            class_featureTotal[i] = 0
             
-       self.negLikelihood = {}
-       for feature in self.negFeature:
-            self.negLikelihood[feature] = self.negFeature[feature] / self.negFeatureCount
+        class_features_count = self.class_features_count()
+        
+        for sentiment in class_features_count: # dict: {class : {feature:count}}
+            class_featureTotal[sentiment] += len(class_features_count[sentiment])
+        return class_featureTotal
+    
+    def class_feature_likelihood(self):
+        class_feature_likelihood = {} # dict: {class : {feature:likelihood}}
+        for i in range(self.classes):
+            class_feature_likelihood[i] = {}
+            
+        class_features_count = self.class_features_count()
+        class_featureTotal = self.class_featureTotal()
+        vocabulary_count = len(self.vocabulary())
+        
+        
+        for phrase in self.phrases:
+            for word in phrase.sentent:
+                likelihood = (class_features_count[phrase.sentiment][word] + 1)/(class_featureTotal[phrase.sentiment] + vocabulary_count)
+                class_feature_likelihood[phrase.sentiment][word]=likelihood
+        return class_feature_likelihood
+            
     
 
-      
+
 # Pridicting    
 class Predictor:
-    def __init__(self, metadata):
+    def __init__(self, metadata, classes):
         self.metadata = metadata
+        self.classes = classes
         
     def predict(self,phrases):
         # Final predict class = max(PriorProbability * sum of features likelyhood)
-        result = {}        
+        
+        result = {}      # dict: {phraseId : sentiment}  
+        class_prediction = {} #dict: {class : prediction}
+        
+        for i in range(self.classes):
+            class_prediction[i] = 0
+        
+        
         for phrase in phrases:
-            negPredict=self.metadata.posPrior
-            neuPredict=self.metadata.posPrior
-            posPredict=self.metadata.posPrior
-            for word in phrase.sentent:
-                if word in self.metadata.negLikelihood:
-                    negPredict *= self.metadata.negLikelihood[word]
-                else:
-                    negPredict *=0
-                if word in self.metadata.neuLikelihood:
-                    neuPredict *= self.metadata.neuLikelihood[word]
-                else:
-                    negPredict *=0
-                if word in self.metadata.posLikelihood:
-                    posPredict *= self.metadata.posLikelihood[word]
-                else:
-                    posPredict *=0
-            resultList = [negPredict,neuPredict,posPredict]
-            prediction = resultList.index(max(resultList))
-            result[phrase.phraseId] = prediction
+            for i in range(self.classes):
+                predict = self.metadata.prior[i]
+                for word in phrase.sentent:
+                    if word in self.metadata.vocabulary():
+                        if word in self.metadata.likelihood[i]:
+                            predict *= self.metadata.likelihood[i][word]
+                class_prediction[i] = predict
+            result[phrase.phraseId] = max(class_prediction, key=class_prediction.get)
+            
         return result
 
 class Evaluator:
@@ -278,53 +244,51 @@ def main():
 ################################## Training ######################################
     #Preprocessing
     # print('='*50,' Training','='*50)
-    phrases = Phrasesor.load(training)
-    processed = Processor(phrases).preProsess()
-    if number_classes == 5:
-        phrases_scaled = processed
-    else:
-        phrases_scaled = Processor(processed).to_3()
+    # phrases = Phrasesor.load(training)
+    # processed = Processor(phrases).preProsess()
+    # if number_classes == 5:
+    #     phrases_scaled = processed
+    # else:
+    #     phrases_scaled = Processor(processed).to_3()
 
 
-    # Training
-    trainer = Trainer(phrases_scaled,number_classes)
-    print(trainer.class_features_count())
-    print(len(trainer.class_features_count()))
+    # # Training
+    # trainer = Trainer(phrases_scaled,number_classes)
 
     # with open('Training_model', 'wb') as f:
     #         pickle.dump(trainer, f)
 
     # print()
     # print('='*50,'Trainning Result','='*50)
-    # print("Negative Prior Probability: ",trainer.posPrior)
-    # print("Neutral Prior Probability: ",trainer.neuPrior)
-    # print("Positive Prior Probability: ",trainer.posPrior)
+    # for i in trainer.prior:
+    #     print(i,trainer.prior[i])
     
 ################################## Developing ######################################
     # load model
-    # with open('Training_model', 'rb') as f:
-    #     corpus_meta = pickle.load(f)
-    # predictor = Predictor(corpus_meta)
+    with open('Training_model', 'rb') as f:
+        corpus_meta = pickle.load(f)
+    predictor = Predictor(corpus_meta,number_classes)
     
     # #Preprocessing
-    # phrases = Phrasesor.phrases(dev)
-    # processed = Processor(phrases).preProsess()
-    # to3Class = Processor(processed).map5to3()
-    # predictResult = predictor.predict(to3Class)
-    # with open("result", 'w') as f:
-    #     f.write('SentenceId\tSentiment\n')
-    #     for i in predictResult:
-    #             f.write(str(i) + '\t' +
-    #                     str(predictResult[i]) + '\n')
+    phrases = Phrasesor.load(dev)
+    processed = Processor(phrases).preProsess()
+    to3Class = Processor(processed).to_3()
+    predictResult = predictor.predict(to3Class)
+    # print(predictResult)
+    with open("result", 'w') as f:
+        f.write('SentenceId\tSentiment\n')
+        for i in predictResult:
+                f.write(str(i) + '\t' +
+                        str(predictResult[i]) + '\n')
                 
 ################################## Evaluate ######################################
     #Preprocessing
-    # evaluator = Evaluator(to3Class,predictResult)
-    # F1_0 = evaluator.F1Calc(0)
-    # F1_1 = evaluator.F1Calc(1)
-    # F1_2 = evaluator.F1Calc(2)
-    # print(F1_0,F1_1,F1_2)
-    # macroF1 = evaluator.macroF1Calc([F1_0,F1_1,F1_2])
+    evaluator = Evaluator(to3Class,predictResult)
+    F1_0 = evaluator.F1Calc(0)
+    F1_1 = evaluator.F1Calc(1)
+    F1_2 = evaluator.F1Calc(2)
+    print(F1_0,F1_1,F1_2)
+    macroF1 = evaluator.macroF1Calc([F1_0,F1_1,F1_2])
     
     macroF1 = 0
 
