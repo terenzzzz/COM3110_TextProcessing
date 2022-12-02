@@ -295,14 +295,13 @@ def main():
         else:
             phrases_scaled = Processor(processed).to_3()
             
-        featureSelector = FeatureSelector(phrases_scaled)
-        featured = featureSelector.featuresFilter()
-        
-        for sentent in phrases_scaled:
-            print(sentent.sentent)
+        if features == "features":
+            
+            featureSelector = FeatureSelector(phrases_scaled)
+            phrases_scaled = featureSelector.featuresFilter()
             
         # Training
-        trainer = Trainer(featured,number_classes)
+        trainer = Trainer(phrases_scaled,number_classes)
     
         with open(model_file, 'wb') as f:
                 pickle.dump(trainer, f)
