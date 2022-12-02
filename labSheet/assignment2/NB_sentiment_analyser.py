@@ -7,8 +7,14 @@ Start code.
 import argparse
 import pandas as pd
 import pickle
-
+import regex as re
+import nltk
 from nltk.corpus import stopwords
+
+import time
+from time import strftime
+from time import gmtime
+
 """
 IMPORTANT, modify this part with your details
 """
@@ -24,6 +30,7 @@ def parse_args():
     parser.add_argument('-features', type=str, default="all_words", choices=["all_words", "features"])
     parser.add_argument('-output_files', action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument('-confusion_matrix', action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument('-mode', type=str, default="train", choices=["train","predict","evaluate"])
     args=parser.parse_args()
     return args
 
@@ -45,6 +52,7 @@ class Phrasesor:
 
 # Preprosessor
 class Processor:
+    # TODO: punctuation removal
     def __init__(self,phrases):
         self.phrases = phrases
     
@@ -52,11 +60,15 @@ class Processor:
         for phrase in self.phrases:
             newSentent=[]
             for word in phrase.sentent:
-                # lowerCase
-                word = word.lower()
-                # StopList
-                if word not in stopwords.words('english'):
-                    newSentent.append(word)
+                # punctuation removal
+                r = "[_=.!+-=`|——,$%^，。？、~@#￥%……&*《》<>「」{}【】()\\\[\]'\"]"
+                word = re.sub(r, '', word)
+                if word != '':
+                    # lowerCase
+                    word = word.lower()
+                    # StopList
+                    if word not in stopwords.words('english'):
+                        newSentent.append(word)
             phrase.sentent = newSentent
         return self.phrases
 
@@ -72,8 +84,27 @@ class Processor:
             elif sentiment == 3 or sentiment == 4:
                 phrase.sentiment = 2
         return self.phrases
-
     
+class FeatureSelector:
+    def __init__(self,phrases):
+        self.phrases = phrases
+        
+    def tagPhrases(self):
+        for phrase in self.phrases:
+            phrase.sentent = nltk.pos_tag(phrase.sentent)
+        return self.phrases 
+    
+    def featuresFilter(self):
+        self.tagPhrases()
+        for phrase in self.phrases:
+            newSentent = []
+            for word in phrase.sentent:
+                if word[1] == "JJ":
+                    newSentent.append(word[0])
+            phrase.sentent = newSentent
+        return self.phrases
+                    
+
 # Trining     
 class Trainer:
     def __init__(self, phrases,classes):
@@ -161,27 +192,26 @@ class Trainer:
 
 # Pridicting    
 class Predictor:
-    def __init__(self, metadata, classes):
+    def __init__(self, metadata, number_classes,phrases):
         self.metadata = metadata
-        self.classes = classes
+        self.number_classes = number_classes
+        self.phrases = phrases
+        self.result = self.predict()
         
-    def predict(self,phrases):
+    def predict(self):
         # Final predict class = max(PriorProbability * sum of features likelyhood)
-        
         result = {}      # dict: {phraseId : sentiment}  
         class_prediction = {} #dict: {class : prediction}
         
-        for i in range(self.classes):
+        for i in range(self.number_classes):
             class_prediction[i] = 0
         
-        
-        for phrase in phrases:
-            for i in range(self.classes):
+        for phrase in self.phrases:
+            for i in range(self.number_classes):
                 predict = self.metadata.prior[i]
                 for word in phrase.sentent:
-                    if word in self.metadata.vocabulary():
-                        if word in self.metadata.likelihood[i]:
-                            predict *= self.metadata.likelihood[i][word]
+                    if word in self.metadata.likelihood[i]:
+                        predict *= self.metadata.likelihood[i][word]
                 class_prediction[i] = predict
             result[phrase.phraseId] = max(class_prediction, key=class_prediction.get)
             
@@ -216,6 +246,14 @@ class Evaluator:
             total += F1[i]
         macroF1 = 1/N * total
         return macroF1
+    
+def parseLine(line):
+    wdtags = line.split()
+    wdtagpairs = []
+    for wdtag in wdtags:
+        parts = wdtag.split('/')
+        wdtagpairs.append((parts[0], parts[1]))
+    return wdtagpairs
             
 
 def main():
@@ -240,67 +278,99 @@ def main():
     #whether to print confusion matrix (default = no confusion matrix)
     confusion_matrix = inputs.confusion_matrix
     
-
+    mode = inputs.mode
+    
+    model_file = "Trained model_class_" + str(number_classes)
+    result_file = "Predict_class_" + str(number_classes)
+    
+    
 ################################## Training ######################################
     #Preprocessing
-    # print('='*50,' Training','='*50)
-    # phrases = Phrasesor.load(training)
-    # processed = Processor(phrases).preProsess()
-    # if number_classes == 5:
-    #     phrases_scaled = processed
-    # else:
-    #     phrases_scaled = Processor(processed).to_3()
-
-
-    # # Training
-    # trainer = Trainer(phrases_scaled,number_classes)
-
-    # with open('Training_model', 'wb') as f:
-    #         pickle.dump(trainer, f)
-
-    # print()
-    # print('='*50,'Trainning Result','='*50)
-    # for i in trainer.prior:
-    #     print(i,trainer.prior[i])
+    if mode == "train":
+        print('='*50,' Training','='*50)
+        phrases = Phrasesor.load(training)
+        processed = Processor(phrases).preProsess()
+        if number_classes == 5:
+            phrases_scaled = processed
+        else:
+            phrases_scaled = Processor(processed).to_3()
+            
+        featureSelector = FeatureSelector(phrases_scaled)
+        featured = featureSelector.featuresFilter()
+        
+        for sentent in phrases_scaled:
+            print(sentent.sentent)
+            
+        # Training
+        trainer = Trainer(featured,number_classes)
     
-################################## Developing ######################################
-    # load model
-    with open('Training_model', 'rb') as f:
-        corpus_meta = pickle.load(f)
-    predictor = Predictor(corpus_meta,number_classes)
-    
-    # #Preprocessing
-    phrases = Phrasesor.load(dev)
-    processed = Processor(phrases).preProsess()
-    to3Class = Processor(processed).to_3()
-    predictResult = predictor.predict(to3Class)
-    # print(predictResult)
-    with open("result", 'w') as f:
-        f.write('SentenceId\tSentiment\n')
-        for i in predictResult:
-                f.write(str(i) + '\t' +
-                        str(predictResult[i]) + '\n')
-                
-################################## Evaluate ######################################
-    #Preprocessing
-    evaluator = Evaluator(to3Class,predictResult)
-    F1_0 = evaluator.F1Calc(0)
-    F1_1 = evaluator.F1Calc(1)
-    F1_2 = evaluator.F1Calc(2)
-    print(F1_0,F1_1,F1_2)
-    macroF1 = evaluator.macroF1Calc([F1_0,F1_1,F1_2])
-    
-    macroF1 = 0
+        with open(model_file, 'wb') as f:
+                pickle.dump(trainer, f)
+        print()
+        print('='*50,'Trainning Result','='*50)
+        for i in trainer.prior:
+            print(i,trainer.prior[i])
 
+################################## Predicting ######################################            
+    elif mode == "predict":
+        print('='*50,'predict','='*50)
+        with open(model_file, 'rb') as f:
+            corpus_meta = pickle.load(f)
+            
+        # #Preprocessing
+        phrases = Phrasesor.load(dev)
+        processed = Processor(phrases).preProsess()
+        if number_classes == 5:
+            phrases_scaled = processed
+        else:
+            phrases_scaled = Processor(processed).to_3()
+            
+        predictor = Predictor(corpus_meta,number_classes,phrases_scaled)
+        predictResult = predictor.result
 
-    """
-    IMPORTANT: your code should return the lines below. 
-    However, make sure you are also implementing a function to save the class predictions on dev and test sets as specified in the assignment handout
-    """
-    #print("Student\tNumber of classes\tFeatures\tmacro-F1(dev)\tAccuracy(dev)")
-    print()
-    print('='*50,'Evaluation','='*50)
-    print("%s\t%d\t%s\t%f" % (USER_ID, number_classes, features, macroF1))
+        # output predict result
+        with open(result_file, 'w') as f:
+            f.write('SentenceId\tSentiment\n')
+            for i in predictResult:
+                    f.write(str(i) + '\t' +
+                            str(predictResult[i]) + '\n')
+                    
+    ################################## Evaluate ######################################
+    else:
+        # #Preprocessing
+        print('='*50,'Evaluation','='*50)
+        phrases = Phrasesor.load(dev)
+        processed = Processor(phrases).preProsess()
+        if number_classes == 5:
+            phrases_scaled = processed
+        else:
+            phrases_scaled = Processor(processed).to_3()
+            
+        predictResult = {}
+        
+        result_file
+        with open(result_file, 'r') as f:
+            next(f)
+            for line in f:
+                splited = line.split()
+                predictResult[int(splited[0])] = int(splited[1])
+
+        #Preprocessing
+        evaluator = Evaluator(phrases_scaled, predictResult)
+        F1_list = []
+        for i in range(number_classes):
+            F1_list.append(evaluator.F1Calc(i))
+
+        macroF1 = evaluator.macroF1Calc(F1_list)
+        
+        print("%s\t%d\t%s\t%f" % (USER_ID, number_classes, features, macroF1))
+        
+
 
 if __name__ == "__main__":
+    start = time.time()
     main()
+    end = time.time()
+    runtime= end -start
+    runtime=strftime("%H:%M:%S", gmtime(runtime))  # 将运行时间转换成时分秒格式
+    print('运行时间',runtime)
