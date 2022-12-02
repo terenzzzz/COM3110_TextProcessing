@@ -4,7 +4,7 @@ save_data_on_exit = True
 save_history = True
 save_non_project_files = False
 project_type = 'empty-project-type'
-recent_files = ['labSheet/week8/lab7.py', 'labSheet/week8/sa_tweets/Tweets_short.csv', '../TextProcessing/labSheet/week7/lab6_solution.py']
+recent_files = ['labSheet/assignment2/NB_sentiment_analyser.py']
 
 [main]
 version = 0.2.0

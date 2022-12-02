@@ -52,7 +52,6 @@ class Phrasesor:
 
 # Preprosessor
 class Processor:
-    # TODO: punctuation removal
     def __init__(self,phrases):
         self.phrases = phrases
     
@@ -96,10 +95,11 @@ class FeatureSelector:
     
     def featuresFilter(self):
         self.tagPhrases()
+        pattern = ["JJ", "RB", "JJR", "JJS"]
         for phrase in self.phrases:
             newSentent = []
             for word in phrase.sentent:
-                if word[1] == "JJ":
+                if word[1] in pattern:
                     newSentent.append(word[0])
             phrase.sentent = newSentent
         return self.phrases
@@ -284,92 +284,94 @@ def main():
     result_file = "Predict_class_" + str(number_classes)
     
     
-################################## Training ######################################
+############ Training ###########
     #Preprocessing
-    if mode == "train":
-        print('='*50,' Training','='*50)
-        phrases = Phrasesor.load(training)
-        processed = Processor(phrases).preProsess()
-        if number_classes == 5:
-            phrases_scaled = processed
-        else:
-            phrases_scaled = Processor(processed).to_3()
-            
-        if features == "features":
-            
-            featureSelector = FeatureSelector(phrases_scaled)
-            phrases_scaled = featureSelector.featuresFilter()
-            
-        # Training
-        trainer = Trainer(phrases_scaled,number_classes)
+    print('='*25,' Training','='*25)
+    phrases = Phrasesor.load(training)
+    processed = Processor(phrases).preProsess()
+    if number_classes == 5:
+        phrases_scaled = processed
+    else:
+        phrases_scaled = Processor(processed).to_3()
+        
+    if features == "features":
+        featureSelector = FeatureSelector(phrases_scaled)
+        phrases_scaled = featureSelector.featuresFilter()
     
-        with open(model_file, 'wb') as f:
-                pickle.dump(trainer, f)
-        print()
-        print('='*50,'Trainning Result','='*50)
-        for i in trainer.prior:
-            print(i,trainer.prior[i])
+        
+    # Training
+    print("Training in Process...")
+    trainer = Trainer(phrases_scaled,number_classes)
+
+    with open(model_file, 'wb') as f:
+            pickle.dump(trainer, f)
+    print()
+    print('-'*25,'Trainning Result','-'*25)
+    for i in trainer.prior:
+        print(i,trainer.prior[i])
 
 ################################## Predicting ######################################            
-    elif mode == "predict":
-        print('='*50,'predict','='*50)
-        with open(model_file, 'rb') as f:
-            corpus_meta = pickle.load(f)
-            
-        # #Preprocessing
-        phrases = Phrasesor.load(dev)
-        processed = Processor(phrases).preProsess()
-        if number_classes == 5:
-            phrases_scaled = processed
-        else:
-            phrases_scaled = Processor(processed).to_3()
-            
-        predictor = Predictor(corpus_meta,number_classes,phrases_scaled)
-        predictResult = predictor.result
-
-        # output predict result
-        with open(result_file, 'w') as f:
-            f.write('SentenceId\tSentiment\n')
-            for i in predictResult:
-                    f.write(str(i) + '\t' +
-                            str(predictResult[i]) + '\n')
-                    
-    ################################## Evaluate ######################################
+    print('='*25,'Predict','='*25)
+    with open(model_file, 'rb') as f:
+        corpus_meta = pickle.load(f)
+        
+    # #Preprocessing
+    phrases = Phrasesor.load(dev)
+    processed = Processor(phrases).preProsess()
+    if number_classes == 5:
+        phrases_scaled = processed
     else:
-        # #Preprocessing
-        print('='*50,'Evaluation','='*50)
-        phrases = Phrasesor.load(dev)
-        processed = Processor(phrases).preProsess()
-        if number_classes == 5:
-            phrases_scaled = processed
-        else:
-            phrases_scaled = Processor(processed).to_3()
-            
-        predictResult = {}
-        
-        result_file
-        with open(result_file, 'r') as f:
-            next(f)
-            for line in f:
-                splited = line.split()
-                predictResult[int(splited[0])] = int(splited[1])
+        phrases_scaled = Processor(processed).to_3()
+    
+    print("Predicting in Process...")
+    predictor = Predictor(corpus_meta,number_classes,phrases_scaled)
+    predictResult = predictor.result
 
-        #Preprocessing
-        evaluator = Evaluator(phrases_scaled, predictResult)
-        F1_list = []
-        for i in range(number_classes):
-            F1_list.append(evaluator.F1Calc(i))
-
-        macroF1 = evaluator.macroF1Calc(F1_list)
+    # output predict result
+    with open(result_file, 'w') as f:
+        f.write('SentenceId\tSentiment\n')
+        for i in predictResult:
+                f.write(str(i) + '\t' +
+                        str(predictResult[i]) + '\n')
+                
+################################## Evaluate ######################################
+    # #Preprocessing
+    print('='*25,'Evaluation','='*25)
+    phrases = Phrasesor.load(dev)
+    processed = Processor(phrases).preProsess()
+    if number_classes == 5:
+        phrases_scaled = processed
+    else:
+        phrases_scaled = Processor(processed).to_3()
         
-        print("%s\t%d\t%s\t%f" % (USER_ID, number_classes, features, macroF1))
-        
+    predictResult = {}
+    
+    result_file
+    with open(result_file, 'r') as f:
+        next(f)
+        for line in f:
+            splited = line.split()
+            predictResult[int(splited[0])] = int(splited[1])
 
+    #Preprocessing
+    print("Evaluating in Process...")
+    evaluator = Evaluator(phrases_scaled, predictResult)
+    F1_list = []
+    for i in range(number_classes):
+        F1_list.append(evaluator.F1Calc(i))
+
+    macroF1 = evaluator.macroF1Calc(F1_list)
+    
+    print("%s\t%d\t%s\t%f" % (USER_ID, number_classes, features, macroF1))
+
+############################## Testing ##############################
 
 if __name__ == "__main__":
     start = time.time()
     main()
     end = time.time()
     runtime= end -start
-    runtime=strftime("%H:%M:%S", gmtime(runtime))  # 将运行时间转换成时分秒格式
-    print('运行时间',runtime)
+    runtime=strftime("%H:%M:%S", gmtime(runtime))
+    print('Running Time: ',runtime)
+
+    
