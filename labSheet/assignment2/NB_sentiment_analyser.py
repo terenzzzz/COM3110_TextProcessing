@@ -10,6 +10,8 @@ import pickle
 import regex as re
 import nltk
 from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+import string
 
 import time
 from time import strftime
@@ -54,20 +56,24 @@ class Phrasesor:
 class Processor:
     def __init__(self,phrases):
         self.phrases = phrases
+        # Init stopwords
+        self.stoplist = []
+        with open('stop_list.txt') as f:
+            for word in f:
+                self.stoplist.append(word)
+        self.stoplist.extend(string.punctuation)
+        self.stoplist = set(self.stoplist)
+
     
     def preProsess(self):
         for phrase in self.phrases:
             newSentent=[]
             for word in phrase.sentent:
-                # punctuation removal
-                r = "[_=.!+-=`|——,$%^，。？、~@#￥%……&*《》<>「」{}【】()\\\[\]'\"]"
-                word = re.sub(r, '', word)
-                if word != '':
-                    # lowerCase
-                    word = word.lower()
-                    # StopList
-                    if word not in stopwords.words('english'):
-                        newSentent.append(word)
+                # lowerCase
+                word = word.lower()
+                # StopList
+                if word not in self.stoplist:
+                    newSentent.append(word)
             phrase.sentent = newSentent
         return self.phrases
 
@@ -187,8 +193,6 @@ class Trainer:
                 class_feature_likelihood[phrase.sentiment][word]=likelihood
         return class_feature_likelihood
             
-    
-
 
 # Pridicting    
 class Predictor:
@@ -284,24 +288,30 @@ def main():
     result_file = "Predict_class_" + str(number_classes)
     
     
+############ Init ###########   
+    print('='*25,' Init','='*25)
+    training_processed = Phrasesor.load(training)
+    dev_processed = Phrasesor.load(dev)
+    
+    training_processed = Processor(training_processed).preProsess()
+    dev_processed = Processor(dev_processed).preProsess()
+    
+    if number_classes == 3:
+        training_processed = Processor(training_processed).to_3()
+        dev_processed = Processor(dev_processed).to_3()
+        
+    if features == "features":
+        featureSelector = FeatureSelector(training_processed)
+        training_processed = featureSelector.featuresFilter()
+    
+    
 ############ Training ###########
     #Preprocessing
     print('='*25,' Training','='*25)
-    phrases = Phrasesor.load(training)
-    processed = Processor(phrases).preProsess()
-    if number_classes == 5:
-        phrases_scaled = processed
-    else:
-        phrases_scaled = Processor(processed).to_3()
-        
-    if features == "features":
-        featureSelector = FeatureSelector(phrases_scaled)
-        phrases_scaled = featureSelector.featuresFilter()
     
-        
     # Training
     print("Training in Process...")
-    trainer = Trainer(phrases_scaled,number_classes)
+    trainer = Trainer(training_processed,number_classes)
 
     with open(model_file, 'wb') as f:
             pickle.dump(trainer, f)
@@ -314,17 +324,9 @@ def main():
     print('='*25,'Predict','='*25)
     with open(model_file, 'rb') as f:
         corpus_meta = pickle.load(f)
-        
-    # #Preprocessing
-    phrases = Phrasesor.load(dev)
-    processed = Processor(phrases).preProsess()
-    if number_classes == 5:
-        phrases_scaled = processed
-    else:
-        phrases_scaled = Processor(processed).to_3()
-    
+
     print("Predicting in Process...")
-    predictor = Predictor(corpus_meta,number_classes,phrases_scaled)
+    predictor = Predictor(corpus_meta,number_classes,dev_processed)
     predictResult = predictor.result
 
     # output predict result
@@ -337,13 +339,6 @@ def main():
 ################################## Evaluate ######################################
     # #Preprocessing
     print('='*25,'Evaluation','='*25)
-    phrases = Phrasesor.load(dev)
-    processed = Processor(phrases).preProsess()
-    if number_classes == 5:
-        phrases_scaled = processed
-    else:
-        phrases_scaled = Processor(processed).to_3()
-        
     predictResult = {}
     
     result_file
@@ -352,10 +347,9 @@ def main():
         for line in f:
             splited = line.split()
             predictResult[int(splited[0])] = int(splited[1])
-
     #Preprocessing
     print("Evaluating in Process...")
-    evaluator = Evaluator(phrases_scaled, predictResult)
+    evaluator = Evaluator(dev_processed, predictResult)
     F1_list = []
     for i in range(number_classes):
         F1_list.append(evaluator.F1Calc(i))
