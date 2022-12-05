@@ -12,6 +12,7 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 import string
+import numpy as np
 
 import time
 from time import strftime
@@ -251,13 +252,54 @@ class Evaluator:
         macroF1 = 1/N * total
         return macroF1
     
-def parseLine(line):
-    wdtags = line.split()
-    wdtagpairs = []
-    for wdtag in wdtags:
-        parts = wdtag.split('/')
-        wdtagpairs.append((parts[0], parts[1]))
-    return wdtagpairs
+class confusion_matrix_Ploter:
+    def __init__(self,number_classes):
+        # Sentiment values
+        self.sentiments_list = ["negative","somewhat negative","neutral","somewhat positive", "positive"]
+        if number_classes == 3:
+            self.sentiments_list = ["negative","neutral","positive"]
+            
+    def plot_confusion_matrix(self, cm, title='Confusion matrix', cmap=None, normalize=True):
+        import matplotlib.pyplot as plt
+        import numpy as np
+        import itertools
+    
+        accuracy = np.trace(cm) / float(np.sum(cm))
+        misclass = 1 - accuracy
+    
+        if normalize:
+            cm = cm.astype('float') / cm.sum()
+    
+        if cmap is None:
+            cmap = plt.get_cmap('Blues')
+    
+        plt.figure(figsize=(8, 6))
+        plt.imshow(cm, interpolation='nearest', cmap=cmap)
+        plt.title(title)
+        plt.colorbar()
+    
+        if self.sentiments_list is not None:
+            tick_marks = np.arange(len(self.sentiments_list))
+            plt.xticks(tick_marks, self.sentiments_list, rotation=45)
+            plt.yticks(tick_marks, self.sentiments_list)
+    
+        thresh = cm.max() / 1.5 if normalize else cm.max() / 2
+        for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+            if normalize:
+                plt.text(j, i, "{:0.4f}".format(cm[i, j]),
+                         horizontalalignment="center",
+                         color="white" if cm[i, j] > thresh else "black")
+            else:
+                plt.text(j, i, "{:,}".format(cm[i, j]),
+                         horizontalalignment="center",
+                         color="white" if cm[i, j] > thresh else "black")
+    
+        plt.grid(False)
+        plt.tight_layout()
+        plt.ylabel('True label')
+        plt.xlabel('Predicted label\naccuracy={:0.4f}; misclass={:0.4f}'.format(accuracy, misclass))
+        plt.show()
+    
             
 
 def main():
@@ -359,6 +401,19 @@ def main():
     print("%s\t%d\t%s\t%f" % (USER_ID, number_classes, features, macroF1))
 
 ############################## Testing ##############################
+
+############################## Ploting ##############################
+    ploter = confusion_matrix_Ploter(number_classes)
+        
+    cm = np.zeros((5,5))
+    sentiments_list = ["negative","somewhat negative","neutral","somewhat positive", "positive"]
+    if number_classes == 3:
+        cm = np.zeros((3,3))
+        sentiments_list = ["negative","neutral","positive"]
+    
+    ploter.plot_confusion_matrix(cm           = cm, 
+                          normalize    = False,
+                          title        = "Confusion Matrix")
 
 if __name__ == "__main__":
     start = time.time()
