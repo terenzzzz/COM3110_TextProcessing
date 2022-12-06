@@ -14,6 +14,9 @@ from nltk.tokenize import word_tokenize
 import string
 import numpy as np
 
+import matplotlib.pyplot as plt
+import itertools
+
 import time
 from time import strftime
 from time import gmtime
@@ -59,9 +62,9 @@ class Processor:
         self.phrases = phrases
         # Init stopwords
         self.stoplist = []
-        with open('stop_list.txt') as f:
-            for word in f:
-                self.stoplist.append(word)
+        # with open('stop_list.txt') as f:
+        #     for word in f:
+        #         self.stoplist.append(word)
         self.stoplist.extend(string.punctuation)
         self.stoplist = set(self.stoplist)
 
@@ -77,8 +80,6 @@ class Processor:
                     newSentent.append(word)
             phrase.sentent = newSentent
         return self.phrases
-
-    
     
     def to_3(self):
         for phrase in self.phrases:
@@ -102,15 +103,16 @@ class FeatureSelector:
     
     def featuresFilter(self):
         self.tagPhrases()
-        pattern = ["JJ", "RB", "JJR", "JJS"]
+        pattern = ["JJ", "JJR", "JJS"]
         for phrase in self.phrases:
             newSentent = []
             for word in phrase.sentent:
                 if word[1] in pattern:
                     newSentent.append(word[0])
             phrase.sentent = newSentent
+            print(phrase.sentent)
         return self.phrases
-                    
+    
 
 # Trining     
 class Trainer:
@@ -119,14 +121,17 @@ class Trainer:
         self.classes = classes
         self.prior = self.class_prior()
         self.likelihood = self.class_feature_likelihood()
+        
 
     def class_count(self):
         class_count_dict = {} # dict: {class : count}
+        
         for i in range(self.classes):
             class_count_dict[i] = 0
         
         for phrase in self.phrases:
             class_count_dict[phrase.sentiment] += 1
+        print("{class : count}",class_count_dict)
         return class_count_dict
     
     def class_prior(self):
@@ -142,6 +147,7 @@ class Trainer:
         
         for i in class_count_dict:
             class_prior_dict[i] = class_count_dict[i]/total_class_count
+        print("{class : priorProbabiliry}:",class_prior_dict)
         return class_prior_dict
         
     def vocabulary(self):
@@ -166,16 +172,16 @@ class Trainer:
                     class_features_count[phrase.sentiment][word] = 1
         return class_features_count
     
+    
     def class_featureTotal(self):
         class_featureTotal = {} # dict: {class : featureTotal}
         
         for i in range(self.classes):
             class_featureTotal[i] = 0
-            
-        class_features_count = self.class_features_count()
         
-        for sentiment in class_features_count: # dict: {class : {feature:count}}
-            class_featureTotal[sentiment] += len(class_features_count[sentiment])
+        for phrases in self.phrases:
+            class_featureTotal[phrases.sentiment] += len(phrases.sentent)
+        print("{class : featureTotal}:", class_featureTotal)
         return class_featureTotal
     
     def class_feature_likelihood(self):
@@ -186,7 +192,6 @@ class Trainer:
         class_features_count = self.class_features_count()
         class_featureTotal = self.class_featureTotal()
         vocabulary_count = len(self.vocabulary())
-        
         
         for phrase in self.phrases:
             for word in phrase.sentent:
@@ -206,26 +211,27 @@ class Predictor:
     def predict(self):
         # Final predict class = max(PriorProbability * sum of features likelyhood)
         result = {}      # dict: {phraseId : sentiment}  
-        class_prediction = {} #dict: {class : prediction}
-        
-        for i in range(self.number_classes):
-            class_prediction[i] = 0
-        
+
+
         for phrase in self.phrases:
+            class_prediction = {} #dict: {class : prediction}
             for i in range(self.number_classes):
                 predict = self.metadata.prior[i]
                 for word in phrase.sentent:
                     if word in self.metadata.likelihood[i]:
                         predict *= self.metadata.likelihood[i][word]
                 class_prediction[i] = predict
-            result[phrase.phraseId] = max(class_prediction, key=class_prediction.get)
+            # print(phrase.phraseId,class_prediction)
             
+            result[phrase.phraseId] = max(class_prediction, key=class_prediction.get)
         return result
 
 class Evaluator:
-    def __init__(self,phrases,predictResult):
+    def __init__(self,phrases,predictResult,sentiments_list):
         self.phrases = phrases
-        self.predictResult = predictResult
+        self.predictResult = predictResult # {8113: 0}
+        self.sentiments_list = sentiments_list
+        
     
     def F1Calc(self,className):
         # for class 0
@@ -233,6 +239,7 @@ class Evaluator:
         FP = 0
         FN = 0
         for phrase in self.phrases:
+            
             if self.predictResult[phrase.phraseId] == phrase.sentiment:
                 if phrase.sentiment == className:
                     TP += 1
@@ -244,6 +251,26 @@ class Evaluator:
         F1 = 2*TP / (2*TP + FP + FN)
         return F1
     
+    def accuracy(self,className):
+        # for class 0
+        TP = 0
+        TN = 0
+        FP = 0
+        FN = 0
+        for phrase in self.phrases:
+            if self.predictResult[phrase.phraseId] == phrase.sentiment:
+                if phrase.sentiment == className:
+                    TP += 1
+                else:
+                    TN += 1
+            else:
+                if phrase.sentiment == className:
+                    FP += 1
+                else:
+                    FN += 1
+        accuracy = (TP + TN) / (TP + FP + TN + FN)
+        return accuracy
+    
     def macroF1Calc(self,F1):
         N = len(F1)
         total = 0
@@ -252,18 +279,21 @@ class Evaluator:
         macroF1 = 1/N * total
         return macroF1
     
-class confusion_matrix_Ploter:
-    def __init__(self,number_classes):
-        # Sentiment values
-        self.sentiments_list = ["negative","somewhat negative","neutral","somewhat positive", "positive"]
-        if number_classes == 3:
-            self.sentiments_list = ["negative","neutral","positive"]
+    def matrix(self):
+        cm = np.zeros((5,5))
+        if len(self.sentiments_list) == 3:
+            cm = np.zeros((3,3))
+        else:
+            cm = np.zeros((5,5))
+
+        for phrase in self.phrases:
+            cm[phrase.sentiment][self.predictResult[phrase.phraseId]] += 1
+        
+        return cm
+    
             
     def plot_confusion_matrix(self, cm, title='Confusion matrix', cmap=None, normalize=True):
-        import matplotlib.pyplot as plt
-        import numpy as np
-        import itertools
-    
+        
         accuracy = np.trace(cm) / float(np.sum(cm))
         misclass = 1 - accuracy
     
@@ -300,8 +330,8 @@ class confusion_matrix_Ploter:
         plt.xlabel('Predicted label\naccuracy={:0.4f}; misclass={:0.4f}'.format(accuracy, misclass))
         plt.show()
     
+    
             
-
 def main():
     
     inputs=parse_args()
@@ -332,6 +362,11 @@ def main():
     
 ############ Init ###########   
     print('='*25,' Init','='*25)
+    if number_classes == 3:
+        sentiments_list = ["negative","neutral","positive"]
+    else:
+        sentiments_list = ["negative","somewhat negative","neutral","somewhat positive", "positive"]
+    
     training_processed = Phrasesor.load(training)
     dev_processed = Phrasesor.load(dev)
     
@@ -346,7 +381,6 @@ def main():
         featureSelector = FeatureSelector(training_processed)
         training_processed = featureSelector.featuresFilter()
     
-    
 ############ Training ###########
     #Preprocessing
     print('='*25,' Training','='*25)
@@ -359,8 +393,6 @@ def main():
             pickle.dump(trainer, f)
     print()
     print('-'*25,'Trainning Result','-'*25)
-    for i in trainer.prior:
-        print(i,trainer.prior[i])
 
 ################################## Predicting ######################################            
     print('='*25,'Predict','='*25)
@@ -391,7 +423,8 @@ def main():
             predictResult[int(splited[0])] = int(splited[1])
     #Preprocessing
     print("Evaluating in Process...")
-    evaluator = Evaluator(dev_processed, predictResult)
+    evaluator = Evaluator(dev_processed, predictResult,sentiments_list)
+    
     F1_list = []
     for i in range(number_classes):
         F1_list.append(evaluator.F1Calc(i))
@@ -400,20 +433,12 @@ def main():
     
     print("%s\t%d\t%s\t%f" % (USER_ID, number_classes, features, macroF1))
 
-############################## Testing ##############################
-
 ############################## Ploting ##############################
-    ploter = confusion_matrix_Ploter(number_classes)
-        
-    cm = np.zeros((5,5))
-    sentiments_list = ["negative","somewhat negative","neutral","somewhat positive", "positive"]
-    if number_classes == 3:
-        cm = np.zeros((3,3))
-        sentiments_list = ["negative","neutral","positive"]
+    evaluator.plot_confusion_matrix(cm =evaluator.matrix(), 
+                          normalize = False,
+                          title = "Confusion Matrix")
     
-    ploter.plot_confusion_matrix(cm           = cm, 
-                          normalize    = False,
-                          title        = "Confusion Matrix")
+############################## Testing ##############################
 
 if __name__ == "__main__":
     start = time.time()
