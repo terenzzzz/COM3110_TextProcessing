@@ -7,15 +7,18 @@ Start code.
 import argparse
 import pandas as pd
 import pickle
-import regex as re
 import nltk
 from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
+from nltk.stem.porter import *
+
 import string
 import numpy as np
 
+
+
 import matplotlib.pyplot as plt
 import itertools
+import sys
 
 import time
 from time import strftime
@@ -62,19 +65,22 @@ class Processor:
         self.phrases = phrases
         # Init stopwords
         self.stoplist = []
+        self.stoplist.extend(['\'s', '``', '\'\'', '...', '--', 'n\'t', '\'d'])
         self.stoplist.extend(string.punctuation)
-        self.stoplist = set(self.stoplist)
+        self.stoplist = stopwords.words('english')
 
     
     def preProsess(self):
+        stemmer = PorterStemmer()
         for phrase in self.phrases:
-            newSentent=[]
+            newSentent=set()
             for word in phrase.sentent:
-                # lowerCase
+                # lowerCase and stemming
                 word = word.lower()
                 # StopList
                 if word not in self.stoplist:
-                    newSentent.append(word)
+                    word = stemmer.stem(word,to_lowercase=(True))
+                    newSentent.add(word)
             phrase.sentent = newSentent
         return self.phrases
     
@@ -101,15 +107,15 @@ class FeatureSelector:
     
     def featuresFilter(self):
         self.tagPhrases()
-        pattern = ["JJ", "JJR", "JJS", "RB","VB","VBD","VBG","VBN","VBP","VBZ"]
+        pattern = ["JJ", "JJR", "JJS", "RB","RBR","RBS","VB","VBD","VBG","VBN","VBP","VBZ","UH"]
         for phrase in self.phrases:
-            newSentent = []
+            newSentent = set()
             for word in phrase.sentent:
                 if word[1] in pattern:
-                    newSentent.append(word[0])
+                    newSentent.add(word[0])
             phrase.sentent = newSentent
         return self.phrases
-    
+
 
 # Trining     
 class Trainer:
@@ -382,9 +388,9 @@ def main():
     print("%s\t%d\t%s\t%f" % (USER_ID, number_classes, features, macroF1))
 
 ############################## Ploting ##############################
-    # evaluator.plot_confusion_matrix(cm =evaluator.matrix(), 
-    #                       normalize = False,
-    #                       title = "Confusion Matrix")
+    evaluator.plot_confusion_matrix(cm =evaluator.matrix(), 
+                          normalize = False,
+                          title = "Confusion Matrix")
     
 # ############################## Testing ##############################
 
@@ -393,8 +399,8 @@ if __name__ == "__main__":
     main()
     end = time.time()
     runtime= end -start
-    runtime=strftime("%H:%M:%S", gmtime(runtime))
+    runtime=strftime("%M:%S", gmtime(runtime))
     print('Running Time: ',runtime)
-    exit()
+    sys.exit()
 
     
