@@ -10,6 +10,7 @@ import pickle
 import nltk
 from nltk.corpus import stopwords
 from nltk.stem.porter import *
+import re
 
 import string
 import numpy as np
@@ -65,21 +66,17 @@ class Processor:
         self.phrases = phrases
         # Init stopwords
         self.stoplist = []
-        self.stoplist.extend(['\'s', '``', '\'\'', '...', '--', 'n\'t', '\'d'])
         self.stoplist.extend(string.punctuation)
         self.stoplist = stopwords.words('english')
 
-    
     def preProsess(self):
-        stemmer = PorterStemmer()
         for phrase in self.phrases:
             newSentent=set()
             for word in phrase.sentent:
-                # lowerCase and stemming
+                # lowerCase
                 word = word.lower()
                 # StopList
                 if word not in self.stoplist:
-                    word = stemmer.stem(word,to_lowercase=(True))
                     newSentent.add(word)
             phrase.sentent = newSentent
         return self.phrases
@@ -106,16 +103,16 @@ class FeatureSelector:
         return self.phrases 
     
     def featuresFilter(self):
+        stemmer = PorterStemmer()
         self.tagPhrases()
-        pattern = ["JJ", "JJR", "JJS", "RB","RBR","RBS","VB","VBD","VBG","VBN","VBP","VBZ","UH"]
+        pattern = ["JJ", "JJR", "JJS", "RB","RBR","RBS","VB","VBD","VBG","VBN","VBP","VBZ","UH","NN","NNS","NNP","NNPS"]
         for phrase in self.phrases:
             newSentent = set()
             for word in phrase.sentent:
                 if word[1] in pattern:
-                    newSentent.add(word[0])
+                    newSentent.add(stemmer.stem(word[0]))
             phrase.sentent = newSentent
         return self.phrases
-
 
 # Trining     
 class Trainer:
@@ -194,13 +191,14 @@ class Predictor:
                 likelihood = prior
                 # Compute Liklihood
                 for word in phrase.sentent:
-                    if word in self.metadata.class_features_count[i]:
-                        count = self.metadata.class_features_count[i][word]
-                    else:
-                        count = 0
-                    smoothed = count +1
-                    smoothed_total_count = self.metadata.class_featureTotal[i] + len(self.metadata.vocabulary)
-                    likelihood *= smoothed / smoothed_total_count
+                    if word in self.metadata.vocabulary:
+                        if word in self.metadata.class_features_count[i]:
+                            count = self.metadata.class_features_count[i][word]
+                        else:
+                            count = 0
+                        smoothed = count +1
+                        smoothed_total_count = self.metadata.class_featureTotal[i] + len(self.metadata.vocabulary)
+                        likelihood *= smoothed / smoothed_total_count
                 likelihood_dict[i] = likelihood
             # print(likelihood_dict)
             result[phrase.phraseId] = max(likelihood_dict, key=likelihood_dict.get)
@@ -341,6 +339,12 @@ def main():
     if features == "features":
         featureSelector = FeatureSelector(training_processed)
         training_processed = featureSelector.featuresFilter()
+        
+        featureSelector_dev = FeatureSelector(dev_processed)
+        dev_processed = featureSelector_dev.featuresFilter()
+    
+    # for i in training_processed:
+    #     print(i.sentent)
     
 ############ Training ###########
     # print('='*25,' Training','='*25)
