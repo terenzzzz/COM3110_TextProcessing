@@ -123,7 +123,7 @@ class FeatureSelector:
         return self.phrases 
     
     # Extract features from phrases
-    def featuresFilter(self):
+    def featuresFilter(self,number_classes):
         stemmer = PorterStemmer()
         self.tagPhrases()
         pattern = ["JJ", "JJR", "JJS", "RB","RBR","RBS","VB","VBD","VBG","VBN","VBP","VBZ","UH","NN","NNS","NNP","NNPS"]
@@ -131,7 +131,10 @@ class FeatureSelector:
             newSentent = set()
             for word in phrase.sentent:
                 if word[1] in pattern:
-                    newSentent.add(stemmer.stem(word[0]))
+                    if number_classes == 3:
+                        newSentent.add(stemmer.stem(word[0]))
+                    else:
+                        newSentent.add(word[0])
             phrase.sentent = newSentent
         return self.phrases
 
@@ -243,7 +246,7 @@ class Evaluator:
     """
     def __init__(self,phrases,predictResult,sentiments_list):
         self.phrases = phrases
-        self.predictResult = predictResult # {8113: 0}
+        self.predictResult = predictResult 
         self.sentiments_list = sentiments_list
         
     # Compute F1 for each class
@@ -253,17 +256,13 @@ class Evaluator:
         FP = 0
         FN = 0
         for phrase in self.phrases:
-            if self.predictResult[phrase.phraseId] == phrase.sentiment:
-                if phrase.sentiment == className:
-                    TP += 1
-                else:
-                    TN += 1
-            else:
-                if phrase.sentiment == className:
-                    FP += 1
-                else:
-                    FN += 1
-        # print("TP:",TP,"TN:",TP," FP:",FP," FN:",FN)
+            if self.predictResult[phrase.phraseId] == className and phrase.sentiment == className:
+                TP += 1
+            elif self.predictResult[phrase.phraseId] == className and phrase.sentiment != className:
+                FP += 1
+            elif self.predictResult[phrase.phraseId] != className and phrase.sentiment == className:
+                FN += 1
+                
         F1 = 2*TP / (2*TP + FP + FN)
         return F1
     
@@ -377,9 +376,9 @@ def main():
         
     # Features Extraction
     if features == "features":
-        training_processed = FeatureSelector(training_processed).featuresFilter()
-        dev_processed = FeatureSelector(dev_processed).featuresFilter()
-        test_processed = FeatureSelector(test_processed).featuresFilter()
+        training_processed = FeatureSelector(training_processed).featuresFilter(number_classes)
+        dev_processed = FeatureSelector(dev_processed).featuresFilter(number_classes)
+        test_processed = FeatureSelector(test_processed).featuresFilter(number_classes)
     
     
 ############ Training ###########
@@ -446,6 +445,26 @@ def main():
         evaluator.plot_confusion_matrix(cm =evaluator.matrix(), 
                               normalize = False,
                               title = "Confusion Matrix")
+        
+##############################################
+    # predictResult = {}
+    
+    # with open("testing/dev_pred_results_3classes.tsv", 'r') as f:
+    #     next(f)
+    #     for line in f:
+    #         splited = line.split()
+    #         predictResult[int(splited[0])] = int(splited[1])
+            
+    # evaluator = Evaluator(dev_processed, predictResult,sentiments_list)
+    
+    # F1_list = []
+    # for i in range(number_classes):
+    #     F1_list.append(evaluator.F1Calc(i))
+
+    # macroF1 = evaluator.macroF1Calc(F1_list)
+    
+    # print("%s\t%d\t%s\t%f" % (USER_ID, number_classes, features, macroF1))
+
 
 if __name__ == "__main__":
     start = time.time()
