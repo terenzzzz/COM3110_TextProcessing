@@ -263,7 +263,7 @@ class Evaluator:
                     FP += 1
                 else:
                     FN += 1
-        print("TP:",TP,"TN:",TN," FP:",FP," FN:",FN)
+        # print("TP:",TP,"TN:",TP," FP:",FP," FN:",FN)
         F1 = 2*TP / (2*TP + FP + FN)
         return F1
     
@@ -346,6 +346,7 @@ def main():
     confusion_matrix = inputs.confusion_matrix
     
     # Define output file path
+   
     model_file = "models/" + "model_class_" + str(number_classes) + "_" + str(features) + ".tsv"
     dev_result_file = "results/" + "dev_predictions_" + str(number_classes) + "classes_" + "acc20zj.tsv"
     test_result_file = "results/" +  "test_predictions_" + str(number_classes) + "classes_" + "acc20zj.tsv"
@@ -385,48 +386,52 @@ def main():
     trained = Trainer(training_processed,number_classes)
     
     # write model to file
-    with open(model_file, 'wb') as f:
-            pickle.dump(trained, f)
+    if output_files:
+        with open(model_file, 'wb') as f:
+                pickle.dump(trained, f)
 
 ################################## Predicting ######################################            
-    # Read model from file
-    with open(model_file, 'rb') as f:
-        corpus_meta = pickle.load(f)
+    # # Read model from file
+    # with open(model_file, 'rb') as f:
+    #     corpus_meta = pickle.load(f)
     
     # Predict
+    corpus_meta = trained
     predictor_dev = Predictor(corpus_meta,number_classes,dev_processed)
     predictResult_dev = predictor_dev.predict()
 
     # output predict result
-    with open(dev_result_file, 'w') as f:
-        f.write('SentenceId\tSentiment\n')
-        for i in predictResult_dev:
-                f.write(str(i) + '\t' +
-                        str(predictResult_dev[i]) + '\n')
+    if output_files:
+        with open(dev_result_file, 'w') as f:
+            f.write('SentenceId\tSentiment\n')
+            for i in predictResult_dev:
+                    f.write(str(i) + '\t' +
+                            str(predictResult_dev[i]) + '\n')
                 
                 
     predictor_test = Predictor(corpus_meta,number_classes,test_processed)
     predictResult_test = predictor_test.predict()
 
     # output predict result
-    with open(test_result_file, 'w') as f:
-        f.write('SentenceId\tSentiment\n')
-        for i in predictResult_test:
-                f.write(str(i) + '\t' +
-                        str(predictResult_test[i]) + '\n')
+    if output_files:
+        with open(test_result_file, 'w') as f:
+            f.write('SentenceId\tSentiment\n')
+            for i in predictResult_test:
+                    f.write(str(i) + '\t' +
+                            str(predictResult_test[i]) + '\n')
                 
 ################################## Evaluate ######################################
     # #Preprocessing
     # print('='*25,'Evaluation','='*25)
-    predictResult = {}
+    # predictResult = {}
     
-    with open(dev_result_file, 'r') as f:
-        next(f)
-        for line in f:
-            splited = line.split()
-            predictResult[int(splited[0])] = int(splited[1])
+    # with open(dev_result_file, 'r') as f:
+    #     next(f)
+    #     for line in f:
+    #         splited = line.split()
+    #         predictResult[int(splited[0])] = int(splited[1])
             
-    evaluator = Evaluator(dev_processed, predictResult,sentiments_list)
+    evaluator = Evaluator(dev_processed, predictResult_dev,sentiments_list)
     
     F1_list = []
     for i in range(number_classes):
