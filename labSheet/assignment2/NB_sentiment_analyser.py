@@ -59,6 +59,14 @@ class Phrasesor:
             phrases.append(phrase)
         return phrases
     
+    def loadTest(filename):
+        df = pd.read_csv(filename,index_col=0, delimiter="\t")
+        phrases=[]
+        for index,row in df.iterrows():
+            phrase = Phrasesor(index,row['Phrase'].split(),0)
+            phrases.append(phrase)
+        return phrases
+    
 
 # Preprosessor
 class Processor:
@@ -215,13 +223,15 @@ class Evaluator:
     def F1Calc(self,className):
         # for class 0
         TP = 0
+        TN = 0
         FP = 0
         FN = 0
         for phrase in self.phrases:
-            
             if self.predictResult[phrase.phraseId] == phrase.sentiment:
                 if phrase.sentiment == className:
                     TP += 1
+                else:
+                    TN += 1
             else:
                 if phrase.sentiment == className:
                     FP += 1
@@ -231,11 +241,7 @@ class Evaluator:
         return F1
     
     def macroF1Calc(self,F1):
-        N = len(F1)
-        total = 0
-        for i in range(N):
-            total += F1[i]
-        macroF1 = 1/N * total
+        macroF1 = sum(F1)/len(F1)
         return macroF1
     
     def matrix(self):
@@ -289,7 +295,6 @@ class Evaluator:
         plt.xlabel('Predicted label\naccuracy={:0.4f}; misclass={:0.4f}'.format(accuracy, misclass))
         plt.show()
     
-    
             
 def main():
     
@@ -313,69 +318,86 @@ def main():
     #whether to print confusion matrix (default = no confusion matrix)
     confusion_matrix = inputs.confusion_matrix
     
-    mode = inputs.mode
+    model_file = "models/" + "model_class_" + str(number_classes) + "_" + str(features) + ".tsv"
     
-    model_file = "Trained model_class_" + str(number_classes)
-    result_file = "Predict_class_" + str(number_classes)
+    dev_result_file = "results/" + "dev_predictions_" + str(number_classes) + "classes_" + "acc20zj.tsv"
+    
+    test_result_file = "results/" +  "test_predictions_" + str(number_classes) + "classes_" + "acc20zj.tsv"
     
     
-############ Init ###########   
-    # print('='*25,' Init','='*25)
-    if number_classes == 3:
-        sentiments_list = ["negative","neutral","positive"]
-    else:
-        sentiments_list = ["negative","somewhat negative","neutral","somewhat positive", "positive"]
-    
+############ Init ########### 
+    # Load dataset
     training_processed = Phrasesor.load(training)
     dev_processed = Phrasesor.load(dev)
+    test_processed = Phrasesor.loadTest(test)
     
-    training_processed = Processor(training_processed).preProsess()
+    # Preproccess dataset
+    training_processed = Processor(training_processed).preProsess() # 74337 
     dev_processed = Processor(dev_processed).preProsess()
+    test_processed = Processor(test_processed).preProsess()
     
+    # Casting 5_class to 3_class if the scal is 3
     if number_classes == 3:
+        # lable for confusion Matrix  
+        sentiments_list = ["negative","neutral","positive"]
+        
         training_processed = Processor(training_processed).to_3()
         dev_processed = Processor(dev_processed).to_3()
+    else:
+        sentiments_list = ["negative","somewhat negative","neutral","somewhat positive", "positive"]
         
+    # Features Extraction
     if features == "features":
-        featureSelector = FeatureSelector(training_processed)
-        training_processed = featureSelector.featuresFilter()
+        featureSelector_train = FeatureSelector(training_processed)
+        training_processed = featureSelector_train.featuresFilter() # 57789
         
         featureSelector_dev = FeatureSelector(dev_processed)
         dev_processed = featureSelector_dev.featuresFilter()
+        
+        featureSelector_test = FeatureSelector(test_processed)
+        test_processed = featureSelector_test.featuresFilter()
     
-    # for i in training_processed:
-    #     print(i.sentent)
     
 ############ Training ###########
-    # print('='*25,' Training','='*25)
-    # Training
-    trainer = Trainer(training_processed,number_classes)
-
+    trained = Trainer(training_processed,number_classes)
+    
+    # write model to file
     with open(model_file, 'wb') as f:
-            pickle.dump(trainer, f)
+            pickle.dump(trained, f)
 
 ################################## Predicting ######################################            
-    # print('='*25,'Predict','='*25)
+    # Read model from file
     with open(model_file, 'rb') as f:
         corpus_meta = pickle.load(f)
-        
-    predictor = Predictor(corpus_meta,number_classes,dev_processed)
-    predictResult = predictor.predict()
+    
+    # Predict
+    predictor_dev = Predictor(corpus_meta,number_classes,dev_processed)
+    predictResult_dev = predictor_dev.predict()
 
     # output predict result
-    with open(result_file, 'w') as f:
+    with open(dev_result_file, 'w') as f:
         f.write('SentenceId\tSentiment\n')
-        for i in predictResult:
+        for i in predictResult_dev:
                 f.write(str(i) + '\t' +
-                        str(predictResult[i]) + '\n')
+                        str(predictResult_dev[i]) + '\n')
+                
+                
+    predictor_test = Predictor(corpus_meta,number_classes,test_processed)
+    predictResult_test = predictor_test.predict()
+
+    # output predict result
+    with open(test_result_file, 'w') as f:
+        f.write('SentenceId\tSentiment\n')
+        for i in predictResult_test:
+                f.write(str(i) + '\t' +
+                        str(predictResult_test[i]) + '\n')
                 
 ################################## Evaluate ######################################
     # #Preprocessing
     # print('='*25,'Evaluation','='*25)
     predictResult = {}
     
-    result_file
-    with open(result_file, 'r') as f:
+    with open(dev_result_file, 'r') as f:
         next(f)
         for line in f:
             splited = line.split()
@@ -392,11 +414,18 @@ def main():
     print("%s\t%d\t%s\t%f" % (USER_ID, number_classes, features, macroF1))
 
 ############################## Ploting ##############################
-    evaluator.plot_confusion_matrix(cm =evaluator.matrix(), 
-                          normalize = False,
-                          title = "Confusion Matrix")
+    if confusion_matrix:
+        evaluator.plot_confusion_matrix(cm =evaluator.matrix(), 
+                              normalize = False,
+                              title = "Confusion Matrix")
     
 # ############################## Testing ##############################
+
+
+
+
+
+
 
 if __name__ == "__main__":
     start = time.time()
