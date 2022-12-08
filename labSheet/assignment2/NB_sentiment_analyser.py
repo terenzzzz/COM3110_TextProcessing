@@ -120,7 +120,6 @@ class FeatureSelector:
     def tagPhrases(self):
         for phrase in self.phrases:
             phrase.sentent = nltk.pos_tag(phrase.sentent)
-            # print(phrase.sentent)
         return self.phrases 
     
     # Extract features from phrases
@@ -161,7 +160,6 @@ class Trainer:
         
         for phrase in self.phrases:
             class_count_dict[phrase.sentiment] += 1
-        # print("{class : count}",class_count_dict)
         return class_count_dict
     
     
@@ -250,7 +248,6 @@ class Evaluator:
         
     # Compute F1 for each class
     def F1Calc(self,className):
-        # for class 0
         TP = 0
         TN = 0
         FP = 0
@@ -266,7 +263,7 @@ class Evaluator:
                     FP += 1
                 else:
                     FN += 1
-        print("TP:",TP," FP:",FP," FN:",FN)
+        print("TP:",TP,"TN:",TN," FP:",FP," FN:",FN)
         F1 = 2*TP / (2*TP + FP + FN)
         return F1
     
@@ -372,20 +369,16 @@ def main():
         
         training_processed = Processor(training_processed).to_3()
         dev_processed = Processor(dev_processed).to_3()
+        test_processed =  Processor(test_processed).to_3()
         
     else:
         sentiments_list = ["negative","somewhat negative","neutral","somewhat positive", "positive"]
         
     # Features Extraction
     if features == "features":
-        featureSelector_train = FeatureSelector(training_processed)
-        training_processed = featureSelector_train.featuresFilter() # 57789
-        
-        featureSelector_dev = FeatureSelector(dev_processed)
-        dev_processed = featureSelector_dev.featuresFilter()
-        
-        featureSelector_test = FeatureSelector(test_processed)
-        test_processed = featureSelector_test.featuresFilter()
+        training_processed = FeatureSelector(training_processed).featuresFilter()
+        dev_processed = FeatureSelector(dev_processed).featuresFilter()
+        test_processed = FeatureSelector(test_processed).featuresFilter()
     
     
 ############ Training ###########
