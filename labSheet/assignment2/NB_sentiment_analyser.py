@@ -10,12 +10,9 @@ import pickle
 import nltk
 from nltk.corpus import stopwords
 from nltk.stem.porter import *
-import re
 
 import string
 import numpy as np
-
-
 
 import matplotlib.pyplot as plt
 import itertools
@@ -44,13 +41,19 @@ def parse_args():
     args=parser.parse_args()
     return args
 
-# read Phrases from file
 class Phrasesor:
+    """ A class to phrase load data into a object
+        Arg: 
+            phraseId: id of the phrase(sentent)
+            sentent: tokens of the phrase in list
+            sentiment: sentiment of the phrase
+    """
     def __init__(self,phraseId,sentent,sentiment):
         self.phraseId = phraseId
         self.sentent = sentent
         self.sentiment = sentiment
     
+    # To load file for training and developing set
     def load(filename):
         df = pd.read_csv(filename,index_col=0, delimiter="\t")
         phrases=[]
@@ -59,6 +62,7 @@ class Phrasesor:
             phrases.append(phrase)
         return phrases
     
+    # To load file for test set, assign default sentiment 0 to every phrases
     def loadTest(filename):
         df = pd.read_csv(filename,index_col=0, delimiter="\t")
         phrases=[]
@@ -68,27 +72,31 @@ class Phrasesor:
         return phrases
     
 
-# Preprosessor
-class Processor:
+class Processor:    
+    """ A class to preprocess the phrase from list of phrases
+        Arg: 
+            phrases: list of phrases
+    """
     def __init__(self,phrases):
         self.phrases = phrases
+        
         # Init stopwords
         self.stoplist = []
         self.stoplist.extend(string.punctuation)
         self.stoplist = stopwords.words('english')
 
+    # Lower case and remove stop words
     def preProsess(self):
         for phrase in self.phrases:
             newSentent=set()
             for word in phrase.sentent:
-                # lowerCase
                 word = word.lower()
-                # StopList
                 if word not in self.stoplist:
                     newSentent.add(word)
             phrase.sentent = newSentent
         return self.phrases
     
+    # Casting 5_class scale to 3_class
     def to_3(self):
         for phrase in self.phrases:
             sentiment = phrase.sentiment
@@ -101,15 +109,21 @@ class Processor:
         return self.phrases
     
 class FeatureSelector:
+    """ A class to extract features from list of phrases
+        Arg: 
+            phrases: list of phrases
+    """
     def __init__(self,phrases):
         self.phrases = phrases
-        
+    
+    # Using part of speech tagging to the phrases
     def tagPhrases(self):
         for phrase in self.phrases:
             phrase.sentent = nltk.pos_tag(phrase.sentent)
             # print(phrase.sentent)
         return self.phrases 
     
+    # Extract features from phrases
     def featuresFilter(self):
         stemmer = PorterStemmer()
         self.tagPhrases()
@@ -122,18 +136,23 @@ class FeatureSelector:
             phrase.sentent = newSentent
         return self.phrases
 
-# Trining     
+    
 class Trainer:
+    """ A class to train the model
+        Arg: 
+            phrases: list of phrases
+            classes: scale of the class
+    """
     def __init__(self, phrases,classes):
         self.phrases = phrases
         self.classes = classes
-        self.class_count = self.class_count()  # 每个class的数量
-        self.class_total = len(phrases)  # 所有clss的数量
-        self.vocabulary = self.vocabulary()  # 出现的特征（去除重复）
-        self.class_features_count = self.class_features_count() # 每个特征在每个class里面出现的次数
-        self.class_featureTotal = self.class_featureTotal()  # 每个class里面出现的所有特征（包括次数）
+        self.class_count = self.class_count()  
+        self.class_total = len(phrases)  
+        self.vocabulary = self.vocabulary()  
+        self.class_features_count = self.class_features_count() 
+        self.class_featureTotal = self.class_featureTotal()  
         
-    # 每个class的数量
+    # The class count per class
     def class_count(self):
         class_count_dict = {} # dict: {class : count}
         
@@ -146,7 +165,7 @@ class Trainer:
         return class_count_dict
     
     
-    # 出现的特征（去除重复）
+    # Features that appear (removing duplicates)
     def vocabulary(self):
         vocabulary = set()
         for phrase in self.phrases:
@@ -154,7 +173,7 @@ class Trainer:
                 vocabulary.add(word)
         return vocabulary
     
-    # 每个特征在每个class里面出现的次数
+    # The number of times each feature appears in each class
     def class_features_count(self):
         class_features_count = {}  # dict: {class : {feature:count}}
         
@@ -169,7 +188,7 @@ class Trainer:
                     class_features_count[phrase.sentiment][word] = 1
         return class_features_count
     
-    # 每个class里面出现的所有特征（包括次数）
+    # # Features counts that appear in each class (including the number of times)
     def class_featureTotal(self):
         class_featureTotal = {} # dict: {class : featureTotal}
         
@@ -178,13 +197,17 @@ class Trainer:
         
         for phrases in self.phrases:
             class_featureTotal[phrases.sentiment] += len(phrases.sentent)
-        # print("{class : featureTotal}:", class_featureTotal)
         return class_featureTotal
             
-
-# Pridicting    
+ 
 class Predictor:
-    def __init__(self, metadata, number_classes,phrases):
+    """ A class to predictor the sentiment for the phrases
+        Arg: 
+            metadata: The model from the trainer
+            number_classes: Scale of the class
+            phrases: List of Phrases
+    """
+    def __init__(self, metadata, number_classes, phrases):
         self.metadata = metadata
         self.phrases = phrases
 
@@ -204,22 +227,28 @@ class Predictor:
                             count = self.metadata.class_features_count[i][word]
                         else:
                             count = 0
+                        # Applyint Laplace smoothing 
                         smoothed = count +1
                         smoothed_total_count = self.metadata.class_featureTotal[i] + len(self.metadata.vocabulary)
                         likelihood *= smoothed / smoothed_total_count
                 likelihood_dict[i] = likelihood
-            # print(likelihood_dict)
             result[phrase.phraseId] = max(likelihood_dict, key=likelihood_dict.get)
         return result
         
 
 class Evaluator:
+    """ A class to evaluate the result which from predictor and draw a confusion matrix
+        Arg: 
+            phrases: List of Phrases
+            predictResult: Result from Predictor
+            sentiments_list: Labels of sentiments
+    """
     def __init__(self,phrases,predictResult,sentiments_list):
         self.phrases = phrases
         self.predictResult = predictResult # {8113: 0}
         self.sentiments_list = sentiments_list
         
-    
+    # Compute F1 for each class
     def F1Calc(self,className):
         # for class 0
         TP = 0
@@ -237,6 +266,7 @@ class Evaluator:
                     FP += 1
                 else:
                     FN += 1
+        print("TP:",TP," FP:",FP," FN:",FN)
         F1 = 2*TP / (2*TP + FP + FN)
         return F1
     
@@ -318,14 +348,13 @@ def main():
     #whether to print confusion matrix (default = no confusion matrix)
     confusion_matrix = inputs.confusion_matrix
     
+    # Define output file path
     model_file = "models/" + "model_class_" + str(number_classes) + "_" + str(features) + ".tsv"
-    
     dev_result_file = "results/" + "dev_predictions_" + str(number_classes) + "classes_" + "acc20zj.tsv"
-    
     test_result_file = "results/" +  "test_predictions_" + str(number_classes) + "classes_" + "acc20zj.tsv"
     
     
-############ Init ########### 
+######################## Init #######################
     # Load dataset
     training_processed = Phrasesor.load(training)
     dev_processed = Phrasesor.load(dev)
@@ -343,6 +372,7 @@ def main():
         
         training_processed = Processor(training_processed).to_3()
         dev_processed = Processor(dev_processed).to_3()
+        
     else:
         sentiments_list = ["negative","somewhat negative","neutral","somewhat positive", "positive"]
         
@@ -418,14 +448,6 @@ def main():
         evaluator.plot_confusion_matrix(cm =evaluator.matrix(), 
                               normalize = False,
                               title = "Confusion Matrix")
-    
-# ############################## Testing ##############################
-
-
-
-
-
-
 
 if __name__ == "__main__":
     start = time.time()
