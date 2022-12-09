@@ -68,3 +68,6 @@
     ```python
     python NB_sentiment_analyser.py moviereviews/train.tsv moviereviews/dev.tsv moviereviews/test.tsv -class 5 -feature features -output_files -confusion_matrix
     ```
+
+### Note
+- The better modle for 3-class and 5-class are using features extraction
