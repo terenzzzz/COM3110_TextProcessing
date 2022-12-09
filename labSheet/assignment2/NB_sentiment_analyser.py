@@ -421,9 +421,10 @@ def main():
                 
 ################################## Evaluate ######################################
     # #Preprocessing
+    
+    # (Testing Proper)
     # print('='*25,'Evaluation','='*25)
     # predictResult = {}
-    
     # with open(dev_result_file, 'r') as f:
     #     next(f)
     #     for line in f:
@@ -446,24 +447,6 @@ def main():
                               normalize = False,
                               title = "Confusion Matrix")
         
-##############################################
-    # predictResult = {}
-    
-    # with open("testing/dev_pred_results_3classes.tsv", 'r') as f:
-    #     next(f)
-    #     for line in f:
-    #         splited = line.split()
-    #         predictResult[int(splited[0])] = int(splited[1])
-            
-    # evaluator = Evaluator(dev_processed, predictResult,sentiments_list)
-    
-    # F1_list = []
-    # for i in range(number_classes):
-    #     F1_list.append(evaluator.F1Calc(i))
-
-    # macroF1 = evaluator.macroF1Calc(F1_list)
-    
-    # print("%s\t%d\t%s\t%f" % (USER_ID, number_classes, features, macroF1))
 
 
 if __name__ == "__main__":
